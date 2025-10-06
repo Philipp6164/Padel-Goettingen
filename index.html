@@ -193,7 +193,7 @@
           <h2>Platzbuchung</h2>
           <p class="meta">Sichere dir deinen Slot. Verlinke hier eure Buchungsplattform.</p>
           <div class="grid" style="grid-template-columns: 1fr;">
-            <a class="btn primary" href="#buchung" aria-label="Jetzt Platz buchen">Jetzt buchen</a>
+            <a class="btn primary" href="https://www.ebusy.de/preise/" target="_blank" rel="noopener" aria-label="Jetzt Platz buchen">Jetzt buchen</a>
             <p class="meta">TODO: hier müssen wir dann unsere Buchungsplattform einbinden (z. B. nuLiga o. Ä.). </p>
           </div>
         </div>
@@ -353,12 +353,64 @@
       a.addEventListener('click', () => { if (nav.classList.contains('open')) closeMenu(); });
     });
 
-    // Demo-Daten
-    const termine = [
-      { tag: 'Mo', zeit: '18:00', titel: 'Anfänger-Training' },
-      { tag: 'Mi', zeit: '19:30', titel: 'Ligaspiel Heim' },
-      { tag: 'Fr', zeit: '17:00', titel: 'Offene Spielrunde' }
-    ];
+  <script>
+// ===== Nächste Termine: automatisch (nächste 14 Tage) =====
+const WEEKDAYS = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+
+const now = new Date();
+const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const end = new Date(start); end.setDate(end.getDate() + 14);
+
+function setTime(d, h, m) { const x = new Date(d); x.setHours(h, m, 0, 0); return x; }
+function addWeekly(items, weekday, hour, minute, title) {
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() === weekday) {
+      const dt = setTime(d, hour, minute);
+      if (dt >= now) items.push({ dt, title });
+    }
+  }
+}
+function firstWeekdayOfMonth(year, month, weekday) {
+  const d = new Date(year, month, 1);
+  const delta = (7 + weekday - d.getDay()) % 7;
+  d.setDate(1 + delta);
+  return d;
+}
+function addFirstFridayMonthly(items, hour, minute, title) {
+  const months = [start.getMonth(), start.getMonth() + 1];
+  months.forEach(m => {
+    const y = start.getFullYear() + Math.floor(m / 12);
+    const mon = (m + 12) % 12;
+    const firstFri = firstWeekdayOfMonth(y, mon, 5); // 5 = Freitag
+    const dt = setTime(firstFri, hour, minute);
+    if (dt >= now && dt <= end) items.push({ dt, title });
+  });
+}
+
+const items = [];
+// === Eure KURSE (wöchentlich) ===
+addWeekly(items, 1, 18, 0,  'Einsteiger-Training');        // Mo 18:00
+addWeekly(items, 4, 19, 0,  'Fortgeschrittenen-Training'); // Do 19:00
+addWeekly(items, 6, 10, 0,  'Jugend U16');                 // Sa 10:00
+
+// === Eure EVENTS ===
+addWeekly(items, 4, 18, 30, 'After-Work Padel');           // Do 18:30
+addWeekly(items, 0, 10, 30, 'Sunday Social');              // So 10:30
+addFirstFridayMonthly(items, 20, 0, 'Padel meets Rave');   // 1. Freitag 20:00
+
+items.sort((a,b) => a.dt - b.dt);
+const upcoming = items.slice(0, 6);
+
+const tbody = document.getElementById('events-table');
+if (tbody) {
+  tbody.innerHTML = upcoming.map(ev => {
+    const tag = WEEKDAYS[ev.dt.getDay()];
+    const zeit = ev.dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return `<tr><td>${tag}</td><td>${zeit}</td><td>${ev.title}</td></tr>`;
+  }).join('');
+}
+// ===== Ende automatische Termine =====
+</script>
 
     const kurse = [
       { titel: 'Einsteiger (5 Wochen)', level: 'Level 0–1', info: 'Montag 18–19 Uhr', status: 'freie Plätze', statusColor: 'var(--ok)' },
