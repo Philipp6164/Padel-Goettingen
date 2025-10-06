@@ -48,10 +48,10 @@
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px; }
     .brand img { width: 36px; height: 36px; border-radius: 50%; }
 
-    .menu-btn { background: transparent; border: 1px solid #3f3f46; color: var(--text); padding: 8px 10px; border-radius: 10px; }
+    .menu-btn { background: transparent; border: 1px solid #3f3f46; color: var(--text); padding: 10px 12px; border-radius: 12px; }
     nav ul { list-style: none; padding: 0; margin: 0; display: none; flex-direction: column; gap: 6px; }
     nav.open ul { display: flex; }
-    nav a { display: block; padding: 10px 12px; border-radius: 10px; }
+    nav a { display: block; padding: 12px 14px; border-radius: 12px; }
     nav a:hover { background: #1f2937; }
 
     @media (min-width: 768px) {
@@ -59,10 +59,22 @@
       nav ul { display: flex !important; flex-direction: row; gap: 10px; }
     }
 
-    h1 { font-size: clamp(28px, 6vw, 44px); line-height: 1.2; margin: 8px 0; }
-    .lead { color: var(--muted); }
+    h1 { font-size: clamp(26px, 6vw, 42px); line-height: 1.2; margin: 8px 0; }
+    .lead { color: var(--muted); font-size: clamp(16px, 2.6vw, 18px); }
     .panel { background: var(--panel); border: 1px solid #222; border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
 
+    /* HERO grid – mobile-first */
+    .hero-grid { display: grid; gap: 16px; align-items: start; }
+    @media (min-width: 900px) { .hero-grid { grid-template-columns: 1.2fr .8fr; align-items: center; } }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; border-radius: 12px; cursor: pointer; text-align: center; }
+    .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-600)); color: white; border: none; }
+    .btn.ghost { color: var(--text); border: 1px solid #3f3f46; }
+    .cta { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+    @media (max-width: 767px) { .cta .btn { flex: 1 1 100%; } }
+
+    /* Cards & grid */
     .grid { display: grid; gap: 16px; }
     .cards { display: grid; gap: 12px; grid-template-columns: 1fr; }
     .card { border: 1px solid #263141; border-radius: 14px; padding: 16px; background: #111826; }
@@ -71,13 +83,12 @@
     @media (min-width: 640px) { .cards { grid-template-columns: repeat(2, 1fr); } }
     @media (min-width: 960px) { .cards { grid-template-columns: repeat(3, 1fr); } }
 
-    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 12px; cursor: pointer; }
-    .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-600)); color: white; border: none; }
-    .btn.ghost { color: var(--text); border: 1px solid #3f3f46; }
-
-    .table { width: 100%; border-collapse: collapse; }
+    /* Tables */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table { width: 100%; border-collapse: collapse; min-width: 360px; }
     .table th, .table td { border-bottom: 1px solid #222; text-align: left; padding: 10px 6px; }
     .table th { color: var(--muted); font-weight: 600; }
+    @media (max-width: 420px) { .table { font-size: 14px; } }
 
     footer { border-top: 1px solid #222; color: var(--muted); padding: 24px 0 40px; }
     :focus-visible { outline: 2px dashed var(--accent); outline-offset: 3px; }
@@ -107,11 +118,11 @@
   <main id="top">
     <!-- HERO -->
     <section class="hero" id="hero">
-      <div class="container grid" style="grid-template-columns: 1.2fr .8fr; align-items: center;">
+      <div class="container hero-grid">
         <div>
           <h1>Padel mit Spaß, Teamgeist & Tempo</h1>
           <p class="lead">Wir sind Padelwerk Göttingen: Training für alle Levels, wöchentliche Matches und Turniere – mobilfreundlich alle Infos auf einen Blick.</p>
-          <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="cta">
             <a class="btn primary" href="#buchung">Platz buchen</a>
             <a class="btn ghost" href="#kurse">Zu den Kursen</a>
           </div>
@@ -119,10 +130,12 @@
         <div class="panel">
           <h2 style="margin:0 0 6px 0;">Nächste Termine</h2>
           <p class="meta" style="margin:0 0 8px 0;">Diese Woche</p>
-          <table class="table" aria-label="Nächste Termine">
-            <thead><tr><th>Tag</th><th>Uhrzeit</th><th>Event</th></tr></thead>
-            <tbody id="events"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="table" aria-label="Nächste Termine">
+              <thead><tr><th>Tag</th><th>Uhrzeit</th><th>Event</th></tr></thead>
+              <tbody id="events"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
@@ -146,7 +159,7 @@
           <p class="meta">Sichere dir deinen Slot. Verlinke hier eure Buchungsplattform.</p>
           <div class="grid" style="grid-template-columns: 1fr;">
             <a class="btn primary" href="#buchung" aria-label="Jetzt Platz buchen">Jetzt buchen</a>
-            <p class="meta">TODO: hier müssen wir dann unsere Buchuchsplattform einbinden z.B. nuLiga oder so </p>
+            <p class="meta">TODO: hier müssen wir dann unsere Buchungsplattform einbinden (z. B. nuLiga o. Ä.). </p>
           </div>
         </div>
       </div>
@@ -196,7 +209,7 @@
               <textarea aria-label="Nachricht" required name="message" rows="4" placeholder="Nachricht" style="width:100%; padding:12px; border-radius:10px; border:1px solid #334155; background:#0b122b; color:var(--text);"></textarea>
             </label>
             <button class="btn primary" type="submit">Absenden</button>
-            <p class="meta">TODO: mailto link zu unserer erstellten Mail.</p>
+            <p class="meta">TODO: mailto-Link oder Formular-Service (Formspree) hinterlegen.</p>
           </form>
         </div>
       </div>
@@ -252,7 +265,7 @@
       toggle.setAttribute('aria-expanded', String(open));
     });
 
-    // Beim Klick auf einen Nav-Link Menü schließen (mobil) & zu Anker springen
+    // Beim Klick auf einen Nav-Link Menü schließen (mobil)
     document.querySelectorAll('nav a[href^="#"]').forEach(a => {
       a.addEventListener('click', () => {
         if (nav.classList.contains('open')) {
