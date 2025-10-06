@@ -16,6 +16,13 @@
   
 
   <style>
+    .sr-only{
+  position:absolute;
+  width:1px; height:1px;
+  padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0);
+  white-space:nowrap; border:0;
+}
     .socials {
   display: flex;
   gap: 14px;
@@ -153,6 +160,10 @@ body {
       #mainnav li { width: auto; border: 0; }
       #mainnav a { padding: 10px 12px; border-radius: 12px; width: auto; }
     }
+    #menuLottie svg {
+  filter: invert(65%) sepia(100%) saturate(800%) hue-rotate(10deg) brightness(1.2);
+}
+
 
     .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .18s ease; }
     .backdrop.show { opacity: 1; pointer-events: auto; }
@@ -183,7 +194,12 @@ body {
         <img src="assets/LOGO.png?v=3" alt="Padel-Logo" width="36" height="36" />
         <span>Padelwerk Göttingen</span>
       </a>
-      <button class="menu-btn" aria-expanded="false" aria-controls="mainnav" id="menutoggle">Menü</button>
+     <button class="menu-btn" id="menutoggle" aria-expanded="false" aria-label="Menü öffnen">
+  <span id="menuLottie" style="width:28px;height:28px;display:block;"></span>
+  <span class="sr-only">Menü</span>
+</button>
+
+
       <nav id="mainnav" aria-label="Hauptnavigation">
         <ul>
           <li><a href="#kurse">Kurse</a></li>
@@ -368,62 +384,85 @@ body {
       </div>
     </div>
   </footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
 
   <script>
 // Jahr im Footer
 document.getElementById('year').textContent = new Date().getFullYear();
 
-// Mobile Menü Toggle
-const toggle = document.getElementById('menutoggle');
-const nav = document.getElementById('mainnav');
+document.addEventListener('DOMContentLoaded', () => {
+  // Elemente
+  const toggle = document.getElementById('menutoggle');
+  const nav    = document.getElementById('mainnav');
 
-// Backdrop
-const backdrop = document.createElement('div');
-backdrop.className = 'backdrop';
-document.body.appendChild(backdrop);
+  // Backdrop anlegen (du hast es benutzt, aber nicht erstellt)
+  const backdrop = document.createElement('div');
+  backdrop.className = 'backdrop';
+  document.body.appendChild(backdrop);
 
-// Headerhöhe fürs mobile Menü setzen
-const resetNavTop = () => {
-  if (window.innerWidth < 768) {
-    nav.style.top = getComputedStyle(document.documentElement).getPropertyValue('--header-h');
+  // Lottie vorbereiten (falls Bibliothek oder Container fehlt -> Fallback)
+  const menuContainer = document.getElementById('menuLottie');
+  let menuAnim = null;
+  const hasLottie = !!(window.lottie && menuContainer);
+
+  if (hasLottie) {
+    menuAnim = lottie.loadAnimation({
+      container: menuContainer,
+      renderer: 'svg',
+      loop: false,
+      autoplay: false,
+      path: './assets/icons/menu.json' // Pfad prüfen (GitHub Pages: case-sensitive, relativ!)
+    });
+    // Startbild (Burger) sicherstellen
+    menuAnim.addEventListener('DOMLoaded', () => {
+      menuAnim.goToAndStop(0, true);
+    });
   } else {
-    nav.style.top = '';
+    // Fallback-Icon/Text, falls nötig
+    if (menuContainer) menuContainer.textContent = '≡';
   }
-};
-resetNavTop();
-window.addEventListener('resize', resetNavTop);
 
-const openMenu = () => {
-  nav.classList.add('open');
-  toggle.setAttribute('aria-expanded', 'true');
-  backdrop.classList.add('show');
-  document.body.style.overflow = 'hidden';
-};
-const closeMenu = () => {
-  nav.classList.remove('open');
-  toggle.setAttribute('aria-expanded', 'false');
-  backdrop.classList.remove('show');
-  document.body.style.overflow = '';
-};
+  function playToX(){ if (menuAnim) menuAnim.playSegments([0,16], true); }
+  function playToBurger(){ if (menuAnim) menuAnim.playSegments([16,28], true); }
 
-toggle.addEventListener('click', () => {
-  nav.classList.contains('open') ? closeMenu() : openMenu();
-});
-backdrop.addEventListener('click', closeMenu);
-window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
-window.addEventListener('resize', () => { if (window.innerWidth >= 768) closeMenu(); });
+  const openMenu = () => {
+    nav.classList.add('open');
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.setAttribute('aria-label', 'Menü schließen');
+    backdrop.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    playToX();
+  };
 
-// Anker-Scroll mit Header-Offset
-document.querySelectorAll('#mainnav a[href^="#"]').forEach(link => {
-  link.addEventListener('click', (e) => {
-    e.preventDefault();
-    const target = document.querySelector(link.getAttribute('href'));
-    if (target) {
-      const offset = document.querySelector('header').offsetHeight - 4;
-      const top = target.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: 'smooth' });
-    }
-    if (nav.classList.contains('open')) closeMenu();
+  const closeMenu = () => {
+    nav.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', 'Menü öffnen');
+    backdrop.classList.remove('show');
+    document.body.style.overflow = '';
+    playToBurger();
+  };
+
+  toggle.addEventListener('click', () => {
+    nav.classList.contains('open') ? closeMenu() : openMenu();
+  });
+  backdrop.addEventListener('click', closeMenu);
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+  window.addEventListener('resize', () => { if (window.innerWidth >= 768) closeMenu(); });
+
+  // Deine bestehende Anker-Scroll-Logik kann so bleiben:
+  document.querySelectorAll('#mainnav a[href^="#"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
+      if (target) {
+        const offset = document.querySelector('header').offsetHeight - 4;
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+      if (nav.classList.contains('open')) closeMenu();
+    });
   });
 });
 
