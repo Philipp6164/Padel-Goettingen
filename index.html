@@ -168,7 +168,7 @@
           <div class="table-wrap">
             <table class="table" aria-label="Nächste Termine">
               <thead><tr><th>Tag</th><th>Uhrzeit</th><th>Event</th></tr></thead>
-              <tbody id="events"></tbody>
+              <tbody id="events-table"></tbody>
             </table>
           </div>
         </div>
@@ -367,7 +367,7 @@
     ];
 
     // Render Termine
-    const tbody = document.getElementById('events');
+    const tbody = document.getElementById('events-table');
     if (tbody) tbody.innerHTML = termine.map(t => `<tr><td>${t.tag}</td><td>${t.zeit}</td><td>${t.titel}</td></tr>`).join('');
 
     // Render Kurse
