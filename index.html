@@ -308,52 +308,6 @@
   </footer>
 
   <script>
-    // Jahr im Footer
-    document.getElementById('year').textContent = new Date().getFullYear();
-
-    // Mobile Menü Toggle (accessible & robust)
-    const toggle = document.getElementById('menutoggle');
-    const nav = document.getElementById('mainnav');
-
-    // Backdrop for click-outside to close
-    const backdrop = document.createElement('div');
-    backdrop.className = 'backdrop';
-    document.body.appendChild(backdrop);
-
-    // Ensure header height is respected
-    const resetNavTop = () => { if (window.innerWidth < 768) nav.style.top = getComputedStyle(document.documentElement).getPropertyValue('--header-h'); };
-    resetNavTop();
-    window.addEventListener('resize', resetNavTop);
-
-    const openMenu = () => {
-      nav.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      backdrop.classList.add('show');
-      document.body.style.overflow = 'hidden';
-    };
-    const closeMenu = () => {
-      nav.classList.remove('open');
-      toggle.setAttribute('aria-expanded', 'false');
-      backdrop.classList.remove('show');
-      document.body.style.overflow = '';
-    };
-
-    toggle.addEventListener('click', () => {
-      const isOpen = nav.classList.contains('open');
-      isOpen ? closeMenu() : openMenu();
-    });
-
-    // Close on backdrop click, ESC, and when resizing to desktop
-    backdrop.addEventListener('click', closeMenu);
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
-    window.addEventListener('resize', () => { if (window.innerWidth >= 768) closeMenu(); });
-
-    // Close after clicking a nav link (mobile)
-    document.querySelectorAll('#mainnav a[href^="#"]').forEach(a => {
-      a.addEventListener('click', () => { if (nav.classList.contains('open')) closeMenu(); });
-    });
-
-  <script>
 // Jahr im Footer
 document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -366,7 +320,14 @@ const backdrop = document.createElement('div');
 backdrop.className = 'backdrop';
 document.body.appendChild(backdrop);
 
-const resetNavTop = () => { if (window.innerWidth < 768) nav.style.top = getComputedStyle(document.documentElement).getPropertyValue('--header-h'); };
+// Headerhöhe fürs mobile Menü setzen
+const resetNavTop = () => {
+  if (window.innerWidth < 768) {
+    nav.style.top = getComputedStyle(document.documentElement).getPropertyValue('--header-h');
+  } else {
+    nav.style.top = '';
+  }
+};
 resetNavTop();
 window.addEventListener('resize', resetNavTop);
 
@@ -390,7 +351,7 @@ backdrop.addEventListener('click', closeMenu);
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 window.addEventListener('resize', () => { if (window.innerWidth >= 768) closeMenu(); });
 
-// Anker-Scroll (Header-Höhe berücksichtigen)
+// Anker-Scroll mit Header-Offset
 document.querySelectorAll('#mainnav a[href^="#"]').forEach(link => {
   link.addEventListener('click', (e) => {
     e.preventDefault();
@@ -404,9 +365,8 @@ document.querySelectorAll('#mainnav a[href^="#"]').forEach(link => {
   });
 });
 
-// ===== Nächste Termine: automatisch (nächste 14 Tage) =====
+// ===== Nächste Termine automatisch (nächste 14 Tage) =====
 const WEEKDAYS = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-
 const now = new Date();
 const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 const end = new Date(start); end.setDate(end.getDate() + 14);
@@ -431,19 +391,18 @@ function addFirstFridayMonthly(items, hour, minute, title) {
   months.forEach(m => {
     const y = start.getFullYear() + Math.floor(m / 12);
     const mon = (m + 12) % 12;
-    const firstFri = firstWeekdayOfMonth(y, mon, 5); // 5 = Freitag
+    const firstFri = firstWeekdayOfMonth(y, mon, 5); // Freitag
     const dt = setTime(firstFri, hour, minute);
     if (dt >= now && dt <= end) items.push({ dt, title });
   });
 }
 
 const items = [];
-// === WÖCHENTLICHE KURSE ===
+// Wöchentliche Kurse
 addWeekly(items, 1, 18, 0,  'Einsteiger-Training');        // Mo 18:00
 addWeekly(items, 4, 19, 0,  'Fortgeschrittenen-Training'); // Do 19:00
 addWeekly(items, 6, 10, 0,  'Jugend U16');                 // Sa 10:00
-
-// === EVENTS ===
+// Events
 addWeekly(items, 4, 18, 30, 'After-Work Padel');           // Do 18:30
 addWeekly(items, 0, 10, 30, 'Sunday Social');              // So 10:30
 addFirstFridayMonthly(items, 20, 0, 'Padel meets Rave');   // 1. Freitag 20:00
@@ -451,7 +410,7 @@ addFirstFridayMonthly(items, 20, 0, 'Padel meets Rave');   // 1. Freitag 20:00
 items.sort((a,b) => a.dt - b.dt);
 const upcoming = items.slice(0, 6);
 
-const tbodyAuto = document.getElementById('events-table');
+const tbodyAuto = document.getElementById('events-table'); // <- ID stimmt mit HTML überein
 if (tbodyAuto) {
   tbodyAuto.innerHTML = upcoming.map(ev => {
     const tag = WEEKDAYS[ev.dt.getDay()];
@@ -463,9 +422,9 @@ if (tbodyAuto) {
 
 // ===== Kurse rendern =====
 const kurse = [
-  { titel: 'Einsteiger (5 Wochen)', level: 'Level 0–1', info: 'Montag 18–19 Uhr', status: 'freie Plätze', statusColor: 'var(--ok)' },
+  { titel: 'Einsteiger (5 Wochen)', level: 'Level 0–1', info: 'Montag 18–19 Uhr',   status: 'freie Plätze', statusColor: 'var(--ok)' },
   { titel: 'Fortgeschrittene',       level: 'Level 2–3', info: 'Donnerstag 19–20 Uhr', status: 'wenige Plätze', statusColor: 'var(--warn)' },
-  { titel: 'Jugend U16',             level: 'Alle',      info: 'Samstag 10–11 Uhr',     status: 'frei',        statusColor: 'var(--ok)' }
+  { titel: 'Jugend U16',             level: 'Alle',      info: 'Samstag 10–11 Uhr', status: 'frei',         statusColor: 'var(--ok)' }
 ];
 
 const kurseliste = document.getElementById('kurseliste');
@@ -479,9 +438,10 @@ if (kurseliste) {
         <span style="font-size:14px; color:${k.statusColor}">${k.status}</span>
       </div>
     </article>
-  `).join('');
+  ).join('');
 }
 </script>
+
    
 </body>
 </html>
