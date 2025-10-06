@@ -92,6 +92,25 @@
 
     footer { border-top: 1px solid #222; color: var(--muted); padding: 24px 0 40px; }
     :focus-visible { outline: 2px dashed var(--accent); outline-offset: 3px; }
+    /* Mobile menu fixes */
+    #mainnav { position: absolute; top: 64px; left: 0; right: 0; background: rgba(14,17,23,.98); border-bottom: 1px solid #222; transform: scaleY(0); transform-origin: top; transition: transform .18s ease-out; }
+    #mainnav.open { transform: scaleY(1); }
+    #mainnav ul { display: flex; flex-direction: column; gap: 0; padding: 8px 0; }
+    #mainnav li { width: 100%; }
+    #mainnav li + li { border-top: 1px solid #222; }
+    #mainnav a { width: 100%; padding: 14px 16px; border-radius: 0; font-size: 16px; line-height: 1.2; }
+    @media (min-width: 768px) {
+      #mainnav { position: static; transform: none; background: transparent; border: 0; }
+      #mainnav ul { display: flex !important; flex-direction: row; gap: 10px; padding: 0; }
+      #mainnav li { width: auto; border: 0; }
+      #mainnav a { padding: 10px 12px; border-radius: 12px; width: auto; }
+    }
+
+    .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .18s ease; }
+    .backdrop.show { opacity: 1; pointer-events: auto; }
+
+    /* Prevent sideways scroll on mobile */
+    body { overflow-x: hidden; }
   </style>
 </head>
 <body>
@@ -257,22 +276,41 @@
     // Jahr im Footer
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Mobile Menü Toggle
+    // Mobile Menü Toggle (accessible & robust)
     const toggle = document.getElementById('menutoggle');
     const nav = document.getElementById('mainnav');
+
+    // Backdrop for click-outside to close
+    const backdrop = document.createElement('div');
+    backdrop.className = 'backdrop';
+    document.body.appendChild(backdrop);
+
+    const openMenu = () => {
+      nav.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+      backdrop.classList.add('show');
+      document.body.style.overflow = 'hidden';
+    };
+    const closeMenu = () => {
+      nav.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      backdrop.classList.remove('show');
+      document.body.style.overflow = '';
+    };
+
     toggle.addEventListener('click', () => {
-      const open = nav.classList.toggle('open');
-      toggle.setAttribute('aria-expanded', String(open));
+      const isOpen = nav.classList.contains('open');
+      isOpen ? closeMenu() : openMenu();
     });
 
-    // Beim Klick auf einen Nav-Link Menü schließen (mobil)
-    document.querySelectorAll('nav a[href^="#"]').forEach(a => {
-      a.addEventListener('click', () => {
-        if (nav.classList.contains('open')) {
-          nav.classList.remove('open');
-          toggle.setAttribute('aria-expanded', 'false');
-        }
-      });
+    // Close on backdrop click, ESC, and when resizing to desktop
+    backdrop.addEventListener('click', closeMenu);
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+    window.addEventListener('resize', () => { if (window.innerWidth >= 768) closeMenu(); });
+
+    // Close after clicking a nav link (mobile)
+    document.querySelectorAll('#mainnav a[href^="#"]').forEach(a => {
+      a.addEventListener('click', () => { if (nav.classList.contains('open')) closeMenu(); });
     });
 
     // Demo-Daten
