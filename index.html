@@ -509,6 +509,22 @@ const fmtDate = d =>
 const fmtDateShort = d =>
   d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
+// 🔐 Escape-Helfer gegen XSS aus Firestore
+function escapeHTML(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+// Nur erlaubte CSS-Farben (Hex oder CSS-Var) durchlassen
+function sanitizeColor(c, fallback = 'var(--ok)') {
+  if (typeof c !== 'string') return fallback;
+  const ok = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c) || /^var\(--[a-z-][a-z0-9-]*\)$/.test(c);
+  return ok ? c : fallback;
+}
+
 // Endzeit aus Start + Dauer berechnen (Default 60 Min)
 function endFrom(startDate, minutes = 60) {
   return new Date(startDate.getTime() + (Number(minutes) || 60) * 60000);
@@ -711,7 +727,7 @@ async function getDocsAll(colName) {
         ? upcoming.map(ev => {
             const tag  = WEEKDAYS[ev.dt.getDay()];
             const zeit = fmtTime(ev.dt);
-            return `<tr><td>${tag}</td><td>${zeit}</td><td>${ev.title} <span class="meta">(${ev.kind})</span></td></tr>`;
+            return `<tr><td>${escapeHTML(tag)}</td><td>${escapeHTML(zeit)}</td><td>${escapeHTML(ev.title)} <span class="meta">(${escapeHTML(ev.kind)})</span></td></tr>`;
           }).join('')
         : `<tr><td colspan="3" class="meta">Keine Termine in den nächsten 14 Tagen.</td></tr>`;
     } catch (err) {
@@ -730,14 +746,15 @@ async function getDocsAll(colName) {
     const cardsHtml = events.map(ev => {
       const hasRec = !!ev.recurrence && (normRecurrence(ev.recurrence)?.freq);
 
-      // wenn wiederkehrend → NUR Regeltext mit Zeitspanne
       if (hasRec) {
-        const line = formatRecurrence(ev.recurrence);
+        const line = escapeHTML(formatRecurrence(ev.recurrence));
+        const title = escapeHTML(ev.title || '');
+        const desc  = escapeHTML(ev.description || '');
         return `
           <article class="card">
-            <h3>${ev.title || ''}</h3>
+            <h3>${title}</h3>
             <p class="meta">${line}</p>
-            ${ev.description ? `<p>${ev.description}</p>` : ``}
+            ${desc ? `<p>${desc}</p>` : ``}
           </article>
         `;
       }
@@ -745,15 +762,17 @@ async function getDocsAll(colName) {
       // einmalig → konkretes Datum + Start–Ende
       const start = ev.start?.toDate ? ev.start.toDate() : (ev.start ? new Date(ev.start) : null);
       const end   = start ? computeEndFromDocOrRule(start, ev) : null;
-      const line  = (start && end)
+      const line  = escapeHTML((start && end)
         ? `${fmtDate(start)} · ${fmtTime(start)}–${fmtTime(end)}`
-        : 'Termin folgt';
+        : 'Termin folgt');
+      const title = escapeHTML(ev.title || '');
+      const desc  = escapeHTML(ev.description || '');
 
       return `
         <article class="card">
-          <h3>${ev.title || ''}</h3>
+          <h3>${title}</h3>
           <p class="meta">${line}</p>
-          ${ev.description ? `<p>${ev.description}</p>` : ``}
+          ${desc ? `<p>${desc}</p>` : ``}
         </article>
       `;
     }).join('');
@@ -775,7 +794,6 @@ async function getDocsAll(colName) {
     const snap = await getDocs(collection(db, 'courses'));
 
     const rows = [];
-    const lookAhead = 180; // Tage für „nächste Vorkommnis“ bei einmaligen, nur für Sortierung
 
     snap.docs.forEach(d => {
       const k = { id: d.id, ...d.data() };
@@ -785,10 +803,8 @@ async function getDocsAll(colName) {
       let sortKey  = new Date(8640000000000000); // sehr groß → nach hinten
 
       if (hasRec) {
-        // nur Regeltext mit Zeitspanne zeigen
         infoLine = formatRecurrence(k.recurrence);
       } else {
-        // nächstes Datum finden (deine nextOccurrence nutzt expandRecurrence/Start)
         const start = k.start?.toDate ? k.start.toDate() : (k.start ? new Date(k.start) : null);
         if (start && start >= new Date()) {
           const end = computeEndFromDocOrRule(start, k);
@@ -799,17 +815,24 @@ async function getDocsAll(colName) {
         }
       }
 
-      const statusColor = k.statusColor || 'var(--ok)';
+      const statusColor = sanitizeColor(k.statusColor, 'var(--ok)');
+
+      const title = escapeHTML(k.title || '');
+      const level = escapeHTML(k.level || '');
+      const info  = escapeHTML(infoLine);
+      const desc  = escapeHTML(k.description || '');
+      const statusText = escapeHTML(k.status || '');
+
       rows.push({
         when: sortKey,
         html: `
           <article class="card">
-            <h3>${k.title || ''}</h3>
-            <p class="meta">${k.level ? `${k.level} · ` : ``}${infoLine}</p>
-            ${k.description ? `<p style="margin-top:8px;">${k.description}</p>` : ``}
+            <h3>${title}</h3>
+            <p class="meta">${level ? `${level} · ` : ``}${info}</p>
+            ${desc ? `<p style="margin-top:8px;">${desc}</p>` : ``}
             <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
               <span class="meta">Status:</span>
-              <span style="font-size:14px; color:${statusColor}">${k.status || ''}</span>
+              <span style="font-size:14px; color:${statusColor}">${statusText}</span>
             </div>
           </article>
         `
@@ -832,31 +855,15 @@ async function getDocsAll(colName) {
     }
   });
 
-// ===== E) PREISE LADEN UND RENDERN =====
+// ===== E) PREISE LADEN UND RENDERN (ohne Filter) =====
   (async () => {
     try {
       const wrap = document.getElementById('preise-wrap');
-      const catSelect = document.getElementById('price-category-filter');
       if (!wrap) return;
 
-      // --- Preise holen ---
-      // Erwartete, aber flexible Struktur:
-      // Collection: "prices"
-      // Dokument-Felder (empfohlen):
-      //  - title: string (z.B. "Einzelstunde Indoor")
-      //  - price: number (z.B. 24.9)
-      //  - currency: string (z.B. "€" | "EUR")
-      //  - unit: string (z.B. "pro Stunde", "p.P.", "4er Court / 90min")
-      //  - category: string (z.B. "Platzbuchung Indoor", "Platzbuchung Outdoor", "Kurs", "Leihschläger")
-      //  - notes: string (optional, kleine Infozeile)
-      //  - active: boolean (optional, default true)
-      //  - sort: number (optional, für Sortierung innerhalb Kategorie)
-      //
-      // Alternativ unterstützt: priceStr (fertig formatierter String), falls ihr z.B. "auf Anfrage" habt.
-
+      // Preise holen
       const priceDocs = await getDocsAll('prices');
 
-      // nur aktive / sinnvolle Einträge
       const items = priceDocs
         .filter(p => p && (p.active !== false))
         .map(p => ({
@@ -871,73 +878,52 @@ async function getDocsAll(colName) {
           sort: (typeof p.sort === 'number') ? p.sort : 1e9
         }));
 
-      // Kategorien sammeln
-      const categories = [...new Set(items.map(i => i.category))].sort((a,b) => a.localeCompare(b, 'de'));
-      // Filter-Select befüllen
-      if (catSelect) {
-        categories.forEach(cat => {
-          const opt = document.createElement('option');
-          opt.value = cat; opt.textContent = cat;
-          catSelect.appendChild(opt);
-        });
-      }
-
       function formatAmount(it) {
-        if (it.priceStr) return it.priceStr;
+        if (it.priceStr) return escapeHTML(it.priceStr);
         if (it.price == null || isNaN(it.price)) return '—';
-        // deutsches Format
-        const num = new Intl.NumberFormat('de-DE', { minimumFractionDigits: (it.price % 1 ? 2 : 0), maximumFractionDigits: 2 }).format(it.price);
-        // "€ 24,90" oder "24,90 €" – wir nehmen hinter dem Betrag
-        return `${num} ${it.currency || '€'}`.trim();
+        const num = new Intl.NumberFormat('de-DE', {
+          minimumFractionDigits: (it.price % 1 ? 2 : 0),
+          maximumFractionDigits: 2
+        }).format(it.price);
+        return escapeHTML(`${num} ${it.currency || '€'}`.trim());
       }
 
-      function render(list, filterCat = '') {
-        // Kategorie-Filter
-        const filtered = filterCat ? list.filter(i => i.category === filterCat) : list;
-
+      function render(list) {
         // nach Kategorie gruppieren
         const byCat = new Map();
-        for (const it of filtered) {
+        for (const it of list) {
           if (!byCat.has(it.category)) byCat.set(it.category, []);
           byCat.get(it.category).push(it);
         }
-
         // sortieren innerhalb jeder Gruppe
         for (const arr of byCat.values()) {
           arr.sort((a,b) => (a.sort - b.sort) || a.title.localeCompare(b.title, 'de'));
         }
-
         // HTML bauen
-        const html = [...byCat.entries()].sort((a,b) => a[0].localeCompare(b[0], 'de')).map(([cat, arr]) => {
-          const rows = arr.map(it => `
-            <div class="price-row">
-              <div>
-                <div class="price-title">${it.title}</div>
-                ${(it.unit || it.notes) ? `<div class="price-meta">${[it.unit, it.notes].filter(Boolean).join(' · ')}</div>` : ``}
+        const html = [...byCat.entries()]
+          .sort((a,b) => a[0].localeCompare(b[0], 'de'))
+          .map(([cat, arr]) => {
+            const rows = arr.map(it => `
+              <div class="price-row">
+                <div>
+                  <div class="price-title">${escapeHTML(it.title)}</div>
+                  ${(it.unit || it.notes) ? `<div class="price-meta">${[escapeHTML(it.unit), escapeHTML(it.notes)].filter(Boolean).join(' · ')}</div>` : ``}
+                </div>
+                <div class="price-amount">${formatAmount(it)}</div>
               </div>
-              <div class="price-amount">${formatAmount(it)}</div>
-            </div>
-          `).join('');
-          return `
-            <section class="price-group">
-              <h3>${cat}</h3>
-              ${rows || `<p class="meta">Keine Einträge.</p>`}
-            </section>
-          `;
-        }).join('');
+            `).join('');
+            return `
+              <section class="price-group">
+                <h3>${escapeHTML(cat)}</h3>
+                ${rows || `<p class="meta">Keine Einträge.</p>`}
+              </section>
+            `;
+          }).join('');
 
         wrap.innerHTML = html || `<p class="meta">Zurzeit sind keine Preise hinterlegt.</p>`;
       }
 
-      // initial render
       render(items);
-
-      // Filter-Änderung
-      if (catSelect) {
-        catSelect.addEventListener('change', () => {
-          render(items, catSelect.value);
-        });
-      }
     } catch (err) {
       console.error('Fehler beim Laden der Preise:', err);
       const wrap = document.getElementById('preise-wrap');
@@ -951,3 +937,4 @@ async function getDocsAll(colName) {
 
    
 </body>
+</html>
