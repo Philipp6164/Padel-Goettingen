@@ -464,6 +464,13 @@ if (kurseliste) {
     </article>
   `).join(''); // ← der abschließende Backtick MUSS hier stehen
 }
+// ===== Nach dem Laden: Immer oben starten =====
+window.addEventListener('load', () => {
+  if (window.location.hash) {
+    history.replaceState(null, null, ' '); // entfernt den Hash aus der URL
+    window.scrollTo({ top: 0, behavior: 'instant' }); // direkt nach oben
+  }
+});
 </script>
 
    
