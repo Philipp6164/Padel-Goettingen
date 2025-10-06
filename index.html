@@ -62,8 +62,7 @@
       #mainnav li { width: auto; border: 0; }
       #mainnav a { padding: 10px 12px; border-radius: 12px; width: auto; }
     }
-      nav ul { display: flex !important; flex-direction: row; gap: 10px; }
-    }
+      
 
     h1 { font-size: clamp(26px, 6vw, 42px); line-height: 1.2; margin: 8px 0; }
     .lead { color: var(--muted); font-size: clamp(16px, 2.6vw, 18px); }
@@ -410,13 +409,17 @@ addFirstFridayMonthly(items, 20, 0, 'Padel meets Rave');   // 1. Freitag 20:00
 items.sort((a,b) => a.dt - b.dt);
 const upcoming = items.slice(0, 6);
 
-const tbodyAuto = document.getElementById('events-table'); // <- ID stimmt mit HTML überein
+const tbodyAuto = document.getElementById('events-table');
 if (tbodyAuto) {
-  tbodyAuto.innerHTML = upcoming.map(ev => {
-    const tag = WEEKDAYS[ev.dt.getDay()];
-    const zeit = ev.dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    return `<tr><td>${tag}</td><td>${zeit}</td><td>${ev.title}</td></tr>`;
-  }).join('');
+  if (upcoming.length === 0) {
+    tbodyAuto.innerHTML = `<tr><td colspan="3" class="meta">Keine Termine in den nächsten 14 Tagen.</td></tr>`;
+  } else {
+    tbodyAuto.innerHTML = upcoming.map(ev => {
+      const tag = WEEKDAYS[ev.dt.getDay()];
+      const zeit = ev.dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      return `<tr><td>${tag}</td><td>${zeit}</td><td>${ev.title}</td></tr>`;
+    }).join('');
+  }
 }
 // ===== Ende automatische Termine =====
 
