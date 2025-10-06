@@ -7,7 +7,6 @@
   <meta name="description" content="Padelwerk Göttingen – Kurse, Platzbuchung, News und Kontakt. Mobilfreundlich und schnell." />
   <meta name="theme-color" content="#16a34a" />
 
-  <!-- Social / SEO -->
   <meta property="og:title" content="Padelwerk Göttingen" />
   <meta property="og:description" content="Komm vorbei: Training, Liga, Platzbuchung & Events." />
   <meta property="og:type" content="website" />
@@ -15,45 +14,30 @@
   <link rel="icon" href="/assets/favicon.ico" />
 
   <style>
-    /* Base & Theme */
     *, *::before, *::after { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    :root { --bg: #0e1117; --panel: #141a24; --text: #f3f4f6; --muted: #9ca3af; --accent: #16a34a; --accent-600: #15803d; --ok: #22c55e; --warn: #f59e0b; --radius: 18px; --shadow: 0 10px 30px rgba(0,0,0,.25); --maxw: 1100px; --header-h: 64px; }
 
-    :root {
-      --bg: #0e1117;
-      --panel: #141a24;
-      --text: #f3f4f6;
-      --muted: #9ca3af;
-      --accent: #16a34a;     /* Grün */
-      --accent-600: #15803d;
-      --ok: #22c55e;
-      --warn: #f59e0b;
-      --radius: 18px;
-      --shadow: 0 10px 30px rgba(0,0,0,.25);
-      --maxw: 1100px;
-      --header-h: 64px;
-    }
-
-    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(1200px 600px at 20% -10%, #122016 0%, var(--bg) 70%); color: var(--text); line-height: 1.6; }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(1200px 600px at 20% -10%, #122016 0%, var(--bg) 70%); color: var(--text); line-height: 1.6; overflow-x: hidden; }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
-    /* Layout */
     .container { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
     section { padding: 44px 0; scroll-margin-top: 80px; }
 
-    header { position: sticky; top: 0; z-index: 50; background: rgba(14,17,23,.9); backdrop-filter: blur(8px); border-bottom: 1px solid #222; }
-    .nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px; }
+    header { position: sticky; top: 0; z-index: 70; background: rgba(14,17,23,.9); backdrop-filter: blur(8px); border-bottom: 1px solid #222; }
+    .nav { display: flex; align-items: center; justify-content: space-between; height: var(--header-h); }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
     .brand img { width: 36px; height: 36px; border-radius: 50%; }
 
     .menu-btn { background: transparent; border: 1px solid #3f3f46; color: var(--text); padding: 10px 12px; border-radius: 12px; }
-    nav ul { list-style: none; padding: 0; margin: 0; display: none; flex-direction: column; gap: 6px; }
-    nav.open ul { display: flex; }
-    nav a { display: block; padding: 12px 14px; border-radius: 12px; }
-    nav a:hover { background: #1f2937; }
+    #mainnav { position: fixed; top: var(--header-h); left: 0; right: 0; width: 100vw; background: rgba(14,17,23,.98); border-bottom: 1px solid #222; transform: scaleY(0); transform-origin: top; transition: transform .18s ease-out; z-index: 60; }
+    #mainnav.open { transform: scaleY(1); }
+    #mainnav ul { display: flex; flex-direction: column; gap: 0; padding: 8px 0; margin: 0; }
+    #mainnav li { width: 100%; }
+    #mainnav li + li { border-top: 1px solid #222; }
+    #mainnav a { width: 100%; padding: 16px; border-radius: 0; font-size: 16px; line-height: 1.2; }
 
     @media (min-width: 768px) {
       .menu-btn { display: none; }
@@ -62,81 +46,42 @@
       #mainnav li { width: auto; border: 0; }
       #mainnav a { padding: 10px 12px; border-radius: 12px; width: auto; }
     }
-      nav ul { display: flex !important; flex-direction: row; gap: 10px; }
-    }
 
-    h1 { font-size: clamp(26px, 6vw, 42px); line-height: 1.2; margin: 8px 0; }
-    .lead { color: var(--muted); font-size: clamp(16px, 2.6vw, 18px); }
-    .panel { background: var(--panel); border: 1px solid #222; border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
-
-    /* HERO grid – mobile-first */
     .hero-grid { display: grid; gap: 16px; align-items: start; }
     @media (min-width: 900px) { .hero-grid { grid-template-columns: 1.2fr .8fr; align-items: center; } }
 
-    /* Buttons */
+    .panel { background: var(--panel); border: 1px solid #222; border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+    .panel > *:first-child { margin-top: 0; }
+    .panel > *:last-child { margin-bottom: 0; }
+    .panel * { max-width: 100%; }
+
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; border-radius: 12px; cursor: pointer; text-align: center; }
     .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-600)); color: white; border: none; }
     .btn.ghost { color: var(--text); border: 1px solid #3f3f46; }
-    .cta { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
-    @media (max-width: 767px) { .cta .btn { flex: 1 1 100%; } }
 
-    /* Cards & grid */
-    .grid { display: grid; gap: 16px; }
     .cards { display: grid; gap: 12px; grid-template-columns: 1fr; }
-    .card { border: 1px solid #263141; border-radius: 14px; padding: 16px; background: #111826; }
-    .card h3 { margin: 0 0 6px; font-size: 18px; }
-    .meta { color: var(--muted); font-size: 14px; }
     @media (min-width: 640px) { .cards { grid-template-columns: repeat(2, 1fr); } }
     @media (min-width: 960px) { .cards { grid-template-columns: repeat(3, 1fr); } }
 
-    /* Tables */
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .table { width: 100%; border-collapse: collapse; min-width: 0; }
     .table th, .table td { border-bottom: 1px solid #222; text-align: left; padding: 10px 6px; }
     .table th { color: var(--muted); font-weight: 600; }
-    @media (max-width: 420px) { .table { font-size: 14px; } }
 
     footer { border-top: 1px solid #222; color: var(--muted); padding: 24px 0 40px; }
-    /* Uniform panel internals */
-    .panel > *:first-child { margin-top: 0; }
-    .panel > *:last-child { margin-bottom: 0; }
-    .panel * { max-width: 100%; }
-    :focus-visible { outline: 2px dashed var(--accent); outline-offset: 3px; }
-    /* Mobile menu fixes */
-    #mainnav { position: fixed; top: var(--header-h); left: 0; right: 0; width: 100vw; background: rgba(14,17,23,.98); border-bottom: 1px solid #222; transform: scaleY(0); transform-origin: top; transition: transform .18s ease-out; z-index: 60; }
-    #mainnav.open { transform: scaleY(1); }
-    #mainnav ul { display: flex; flex-direction: column; gap: 0; padding: 8px 0; margin: 0; }
-    #mainnav li { width: 100%; }
-    #mainnav li + li { border-top: 1px solid #222; }
-    #mainnav a { width: 100%; padding: 16px; border-radius: 0; font-size: 16px; line-height: 1.2; }
-    #mainnav.open { transform: scaleY(1); }
-    #mainnav ul { display: flex; flex-direction: column; gap: 0; padding: 8px 0; }
-    #mainnav li { width: 100%; }
-    #mainnav li + li { border-top: 1px solid #222; }
-    #mainnav a { width: 100%; padding: 14px 16px; border-radius: 0; font-size: 16px; line-height: 1.2; }
-    @media (min-width: 768px) {
-      #mainnav { position: static; transform: none; background: transparent; border: 0; }
-      #mainnav ul { display: flex !important; flex-direction: row; gap: 10px; padding: 0; }
-      #mainnav li { width: auto; border: 0; }
-      #mainnav a { padding: 10px 12px; border-radius: 12px; width: auto; }
-    }
-
     .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .18s ease; }
     .backdrop.show { opacity: 1; pointer-events: auto; }
-
-    /* Prevent sideways scroll on mobile */
-    body { overflow-x: hidden; }
   </style>
 </head>
 <body>
   <header>
     <div class="container nav">
-      <a class="brand" href="#top" aria-label="Startseite – Padelwerk Göttingen">
+      <a class="brand" href="#top">
         <img src="/assets/logo-64.png" alt="Padel-Logo" />
         <span>Padelwerk Göttingen</span>
       </a>
       <button class="menu-btn" aria-expanded="false" aria-controls="mainnav" id="menutoggle">Menü</button>
-      <nav id="mainnav" aria-label="Hauptnavigation">
+      <nav id="mainnav">
         <ul>
           <li><a href="#kurse">Kurse</a></li>
           <li><a href="#buchung">Platzbuchung</a></li>
@@ -151,56 +96,47 @@
   </header>
 
   <main id="top">
-    <!-- HERO -->
     <section class="hero" id="hero">
-      <div class="container hero-grid" style="overflow:hidden;">
+      <div class="container hero-grid">
         <div>
           <h1>Padel mit Spaß, Teamgeist & Tempo</h1>
-          <p class="lead">Wir sind Padelwerk Göttingen: Training für alle Levels, wöchentliche Matches und Turniere – mobilfreundlich alle Infos auf einen Blick.</p>
+          <p>Wir sind Padelwerk Göttingen: Training für alle Levels, wöchentliche Matches und Turniere – mobilfreundlich alle Infos auf einen Blick.</p>
           <div class="cta">
             <a class="btn primary" href="#buchung">Platz buchen</a>
             <a class="btn ghost" href="#kurse">Zu den Kursen</a>
           </div>
         </div>
         <div class="panel">
-          <h2 style="margin:0 0 6px 0;">Nächste Termine</h2>
-          <p class="meta" style="margin:0 0 8px 0;">Diese Woche</p>
+          <h2>Nächste Termine</h2>
           <div class="table-wrap">
             <table class="table" aria-label="Nächste Termine">
               <thead><tr><th>Tag</th><th>Uhrzeit</th><th>Event</th></tr></thead>
-              <tbody id="events"></tbody>
+              <tbody id="events-table"></tbody>
             </table>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- KURSE -->
     <section id="kurse">
       <div class="container">
         <div class="panel">
           <h2>Kurse</h2>
-          <p class="meta">Einsteiger, Fortgeschrittene & Jugend</p>
           <div class="cards" id="kurseliste"></div>
         </div>
       </div>
     </section>
 
-    <!-- BUCHUNG -->
     <section id="buchung">
       <div class="container">
         <div class="panel">
           <h2>Platzbuchung</h2>
-          <p class="meta">Sichere dir deinen Slot. Verlinke hier eure Buchungsplattform.</p>
-          <div class="grid" style="grid-template-columns: 1fr;">
-            <a class="btn primary" href="#buchung" aria-label="Jetzt Platz buchen">Jetzt buchen</a>
-            <p class="meta">TODO: hier müssen wir dann unsere Buchungsplattform einbinden (z. B. nuLiga o. Ä.). </p>
-          </div>
+          <p>Sichere dir deinen Slot. Verlinke hier eure Buchungsplattform.</p>
+          <a class="btn primary" href="#">Jetzt buchen</a>
         </div>
       </div>
     </section>
 
-    <!-- EVENTS -->
     <section id="events">
       <div class="container">
         <div class="panel">
@@ -209,12 +145,12 @@
           <div class="cards">
             <article class="card">
               <h3>After-Work Padel</h3>
-              <p class="meta">Jeden Donnerstag · 18:30–21:00</p>
+              <p class="meta">Donnerstag · 18:30–21:00</p>
               <p>Locker spielen, neue Leute kennenlernen, Getränke an der Side-Line. Level offen – wir matchen vor Ort.</p>
             </article>
             <article class="card">
               <h3>Padel meets Rave</h3>
-              <p class="meta">Jeden ersten Freitag im Monat · 20:00–23:30</p>
+              <p class="meta">Freitag (monatlich) · 20:00–23:30</p>
               <p>Flutlicht, Beats & schnelle Ballwechsel. Mini-Fun-Cup, kleine Preise & Good Vibes.</p>
             </article>
             <article class="card">
@@ -227,72 +163,45 @@
       </div>
     </section>
 
-    <!-- ÜBER UNS -->
     <section id="ueber-uns">
       <div class="container">
         <div class="panel">
           <h2>Über uns</h2>
-          <p class="meta">Wer wir sind & wofür wir stehen</p>
           <p>Padelwerk Göttingen ist ein junger, offener Padel-Spot in der Region. Wir verbinden Sport, Community und Events – vom Anfängerkurs über After-Work Runden bis zu besonderen Abenden mit Musik & Flutlicht.</p>
-          <ul class="meta" style="padding-left: 20px;">
-            <li>Community-first: Jede*r findet schnell Mitspieler:innen</li>
-            <li>Mobilfreundliche Infos & einfache Buchung</li>
-            <li>Faire Court-Zeiten & Trainings für alle Levels</li>
-          </ul>
         </div>
       </div>
     </section>
 
-    <!-- KONTAKT -->
     <section id="kontakt">
       <div class="container">
         <div class="panel">
           <h2>Kontakt</h2>
-          <p class="meta">Fragen? Schreib uns!</p>
           <form class="grid" style="grid-template-columns: 1fr; gap: 12px; max-width: 640px;">
-            <label>
-              <span class="sr-only">Name</span>
-              <input aria-label="Name" required name="name" placeholder="Dein Name" style="width:100%; padding:12px; border-radius:10px; border:1px solid #334155; background:#0b122b; color:var(--text);" />
-            </label>
-            <label>
-              <span class="sr-only">E-Mail</span>
-              <input aria-label="E-Mail" required type="email" name="email" placeholder="E-Mail" style="width:100%; padding:12px; border-radius:10px; border:1px solid #334155; background:#0b122b; color:var(--text);" />
-            </label>
-            <label>
-              <span class="sr-only">Nachricht</span>
-              <textarea aria-label="Nachricht" required name="message" rows="4" placeholder="Nachricht" style="width:100%; padding:12px; border-radius:10px; border:1px solid #334155; background:#0b122b; color:var(--text);"></textarea>
-            </label>
+            <input placeholder="Dein Name" required />
+            <input type="email" placeholder="E-Mail" required />
+            <textarea placeholder="Nachricht" rows="4" required></textarea>
             <button class="btn primary" type="submit">Absenden</button>
-            <p class="meta">TODO: mailto-Link oder Formular-Service (Formspree) hinterlegen.</p>
           </form>
         </div>
       </div>
     </section>
 
-    <!-- IMPRESSUM -->
     <section id="impressum">
       <div class="container">
         <div class="panel">
           <h2>Impressum</h2>
-          <p class="meta">Angaben gemäß § 5 TMG</p>
-          <address style="font-style: normal; line-height:1.8;">
-            Padelwerk Göttingen<br />
-            Philipp Syring, Johannes Bodenstein<br />
-            Lange-Geismar-Straße 62<br />
-            37073 Göttingen
+          <address style="font-style:normal;">
+            Padelwerk Göttingen<br>Philipp Syring, Johannes Bodenstein<br>Lange-Geismar-Straße 62<br>37073 Göttingen
           </address>
-          <p class="meta">Kontakt: <a href="mailto:info@padelwerk-goettingen.de">info@padelwerk-goettingen.de</a> (Nur ein Beispiel)</p>
         </div>
       </div>
     </section>
 
-    <!-- DATENSCHUTZ (Kurz-Platzhalter) -->
     <section id="datenschutz">
       <div class="container">
         <div class="panel">
           <h2>Datenschutz</h2>
-          <p class="meta">Kurzinfo</p>
-          <p>Wir verarbeiten personenbezogene Daten nur, soweit dies zur Bereitstellung dieser Website, zur Kommunikation und – falls genutzt – zur Platzbuchung erforderlich ist. Ausführliche Informationen folgen in einer erweiterten Datenschutzerklärung.</p>
+          <p>Wir verarbeiten personenbezogene Daten nur, soweit dies zur Bereitstellung dieser Website, zur Kommunikation und – falls genutzt – zur Platzbuchung erforderlich ist.</p>
         </div>
       </div>
     </section>
@@ -300,7 +209,7 @@
 
   <footer>
     <div class="container">
-      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;">
         <small>© <span id="year"></span> Padelwerk Göttingen</small>
         <small><a href="#impressum">Impressum</a> · <a href="#datenschutz">Datenschutz</a></small>
       </div>
@@ -308,80 +217,31 @@
   </footer>
 
   <script>
-    // Jahr im Footer
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Mobile Menü Toggle (accessible & robust)
     const toggle = document.getElementById('menutoggle');
     const nav = document.getElementById('mainnav');
-
-    // Backdrop for click-outside to close
     const backdrop = document.createElement('div');
     backdrop.className = 'backdrop';
     document.body.appendChild(backdrop);
 
-    // Ensure header height is respected
-    const resetNavTop = () => { if (window.innerWidth < 768) nav.style.top = getComputedStyle(document.documentElement).getPropertyValue('--header-h'); };
-    resetNavTop();
-    window.addEventListener('resize', resetNavTop);
-
-    const openMenu = () => {
-      nav.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      backdrop.classList.add('show');
-      document.body.style.overflow = 'hidden';
-    };
-    const closeMenu = () => {
-      nav.classList.remove('open');
-      toggle.setAttribute('aria-expanded', 'false');
-      backdrop.classList.remove('show');
-      document.body.style.overflow = '';
-    };
-
-    toggle.addEventListener('click', () => {
-      const isOpen = nav.classList.contains('open');
-      isOpen ? closeMenu() : openMenu();
-    });
-
-    // Close on backdrop click, ESC, and when resizing to desktop
+    const openMenu = () => { nav.classList.add('open'); backdrop.classList.add('show'); document.body.style.overflow='hidden'; }
+    const closeMenu = () => { nav.classList.remove('open'); backdrop.classList.remove('show'); document.body.style.overflow=''; }
+    toggle.addEventListener('click', ()=> nav.classList.contains('open') ? closeMenu() : openMenu());
     backdrop.addEventListener('click', closeMenu);
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
-    window.addEventListener('resize', () => { if (window.innerWidth >= 768) closeMenu(); });
 
-    // Close after clicking a nav link (mobile)
-    document.querySelectorAll('#mainnav a[href^="#"]').forEach(a => {
-      a.addEventListener('click', () => { if (nav.classList.contains('open')) closeMenu(); });
+    // Smooth scroll fix for mobile menu
+    document.querySelectorAll('#mainnav a[href^="#"]').forEach(link=>{
+      link.addEventListener('click', e=>{
+        e.preventDefault();
+        const target=document.querySelector(link.getAttribute('href'));
+        if(target){window.scrollTo({top:target.offsetTop-60,behavior:'smooth'});} 
+        closeMenu();
+      });
     });
 
-    // Demo-Daten
-    const termine = [
-      { tag: 'Mo', zeit: '18:00', titel: 'Anfänger-Training' },
-      { tag: 'Mi', zeit: '19:30', titel: 'Ligaspiel Heim' },
-      { tag: 'Fr', zeit: '17:00', titel: 'Offene Spielrunde' }
-    ];
-
-    const kurse = [
-      { titel: 'Einsteiger (5 Wochen)', level: 'Level 0–1', info: 'Montag 18–19 Uhr', status: 'freie Plätze', statusColor: 'var(--ok)' },
-      { titel: 'Fortgeschrittene', level: 'Level 2–3', info: 'Donnerstag 19–20 Uhr', status: 'wenige Plätze', statusColor: 'var(--warn)' },
-      { titel: 'Jugend U16', level: 'Alle', info: 'Samstag 10–11 Uhr', status: 'frei', statusColor: 'var(--ok)' }
-    ];
-
-    // Render Termine
-    const tbody = document.getElementById('events');
-    if (tbody) tbody.innerHTML = termine.map(t => `<tr><td>${t.tag}</td><td>${t.zeit}</td><td>${t.titel}</td></tr>`).join('');
-
-    // Render Kurse
-    const kurseliste = document.getElementById('kurseliste');
-    if (kurseliste) kurseliste.innerHTML = kurse.map(k => `
-      <article class="card">
-        <h3>${k.titel}</h3>
-        <p class="meta">${k.level} · ${k.info}</p>
-        <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-          <span class="meta">Status:</span>
-          <span style="font-size:14px; color:${k.statusColor}">${k.status}</span>
-        </div>
-      </article>
-    `).join('');
+    const termine=[{tag:'Mo',zeit:'18:00',titel:'Anfänger-Training'},{tag:'Mi',zeit:'19:30',titel:'Ligaspiel Heim'},{tag:'Fr',zeit:'17:00',titel:'Offene Spielrunde'}];
+    document.getElementById('events-table').innerHTML=termine.map(t=>`<tr><td>${t.tag}</td><td>${t.zeit}</td><td>${t.titel}</td></tr>`).join('');
   </script>
 </body>
 </html>
