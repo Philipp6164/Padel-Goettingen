@@ -33,6 +33,7 @@
       --radius: 18px;
       --shadow: 0 10px 30px rgba(0,0,0,.25);
       --maxw: 1100px;
+      --header-h: 64px;
     }
 
     body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(1200px 600px at 20% -10%, #122016 0%, var(--bg) 70%); color: var(--text); line-height: 1.6; }
@@ -56,6 +57,11 @@
 
     @media (min-width: 768px) {
       .menu-btn { display: none; }
+      #mainnav { position: static; transform: none; background: transparent; border: 0; width: auto; }
+      #mainnav ul { display: flex !important; flex-direction: row; gap: 10px; padding: 0; }
+      #mainnav li { width: auto; border: 0; }
+      #mainnav a { padding: 10px 12px; border-radius: 12px; width: auto; }
+    }
       nav ul { display: flex !important; flex-direction: row; gap: 10px; }
     }
 
@@ -85,15 +91,24 @@
 
     /* Tables */
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .table { width: 100%; border-collapse: collapse; min-width: 360px; }
+    .table { width: 100%; border-collapse: collapse; min-width: 0; }
     .table th, .table td { border-bottom: 1px solid #222; text-align: left; padding: 10px 6px; }
     .table th { color: var(--muted); font-weight: 600; }
     @media (max-width: 420px) { .table { font-size: 14px; } }
 
     footer { border-top: 1px solid #222; color: var(--muted); padding: 24px 0 40px; }
+    /* Uniform panel internals */
+    .panel > *:first-child { margin-top: 0; }
+    .panel > *:last-child { margin-bottom: 0; }
+    .panel * { max-width: 100%; }
     :focus-visible { outline: 2px dashed var(--accent); outline-offset: 3px; }
     /* Mobile menu fixes */
-    #mainnav { position: absolute; top: 64px; left: 0; right: 0; background: rgba(14,17,23,.98); border-bottom: 1px solid #222; transform: scaleY(0); transform-origin: top; transition: transform .18s ease-out; }
+    #mainnav { position: fixed; top: var(--header-h); left: 0; right: 0; width: 100vw; background: rgba(14,17,23,.98); border-bottom: 1px solid #222; transform: scaleY(0); transform-origin: top; transition: transform .18s ease-out; z-index: 60; }
+    #mainnav.open { transform: scaleY(1); }
+    #mainnav ul { display: flex; flex-direction: column; gap: 0; padding: 8px 0; margin: 0; }
+    #mainnav li { width: 100%; }
+    #mainnav li + li { border-top: 1px solid #222; }
+    #mainnav a { width: 100%; padding: 16px; border-radius: 0; font-size: 16px; line-height: 1.2; }
     #mainnav.open { transform: scaleY(1); }
     #mainnav ul { display: flex; flex-direction: column; gap: 0; padding: 8px 0; }
     #mainnav li { width: 100%; }
@@ -137,7 +152,7 @@
   <main id="top">
     <!-- HERO -->
     <section class="hero" id="hero">
-      <div class="container hero-grid">
+      <div class="container hero-grid" style="overflow:hidden;">
         <div>
           <h1>Padel mit Spaß, Teamgeist & Tempo</h1>
           <p class="lead">Wir sind Padelwerk Göttingen: Training für alle Levels, wöchentliche Matches und Turniere – mobilfreundlich alle Infos auf einen Blick.</p>
@@ -284,6 +299,11 @@
     const backdrop = document.createElement('div');
     backdrop.className = 'backdrop';
     document.body.appendChild(backdrop);
+
+    // Ensure header height is respected
+    const resetNavTop = () => { if (window.innerWidth < 768) nav.style.top = getComputedStyle(document.documentElement).getPropertyValue('--header-h'); };
+    resetNavTop();
+    window.addEventListener('resize', resetNavTop);
 
     const openMenu = () => {
       nav.classList.add('open');
