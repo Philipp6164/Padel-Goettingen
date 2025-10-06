@@ -185,6 +185,13 @@ body {
   background: linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.75)); /* dunkles Overlay */
   z-index: -1;
 }
+.price-group { border: 1px solid #263141; border-radius: 14px; padding: 16px; background: #0f1522; }
+.price-group h3 { margin: 0 0 8px; font-size: 18px; }
+.price-row { display:flex; justify-content:space-between; align-items:baseline; gap: 12px; padding: 10px 0; border-top: 1px solid #1d2736; }
+.price-row:first-of-type { border-top: none; }
+.price-title { font-weight: 600; }
+.price-meta { color: var(--muted); font-size: 14px; }
+.price-amount { font-weight: 700; }
   </style>
 </head>
 <body>
@@ -204,6 +211,7 @@ body {
         <ul>
           <li><a href="#kurse">Kurse</a></li>
           <li><a href="#buchung">Platzbuchung</a></li>
+          <li><a href="#preise">Preise</a></li>
           <li><a href="#events">Events</a></li>
           <li><a href="#ueber-uns">Über uns</a></li>
           <li><a href="#kontakt">Kontakt</a></li>
@@ -263,6 +271,26 @@ body {
         </div>
       </div>
     </section>
+
+    <!-- PREISE -->
+<section id="preise">
+  <div class="container">
+    <div class="panel">
+      <h2>Preise</h2>
+      <p class="meta">Alle Preise werden live aus unserer Datenbank geladen.</p>
+
+      <!-- Filterleiste (optional) -->
+      <div id="price-filters" class="grid" style="grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px;">
+        <select id="price-category-filter" aria-label="Kategorie filtern" style="max-width: 320px; padding: 10px; border-radius: 10px; border:1px solid #334155; background:#0b122b; color:var(--text);">
+          <option value="">Alle Kategorien</option>
+        </select>
+      </div>
+
+      <!-- Ausgabe -->
+      <div id="preise-wrap" class="grid" style="gap: 16px;"></div>
+    </div>
+  </div>
+</section>
 
     <!-- EVENTS -->
 <section id="events">
@@ -478,137 +506,178 @@ window.addEventListener('load', () => {
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
 
-  // ---------- Utils ----------
-  const WEEKDAYS = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-  const fmtTime = d => d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-  const fmtDate = d => d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+ // ---------- Utils ----------
+const WEEKDAYS = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 
-  // Recurrence: in ein sauberes Objekt normalisieren
-  function normRecurrence(r) {
-    if (!r) return null;
-    const freq = String(r.freq || '').toUpperCase();
-    const hour = Number(r.hour ?? 0);
-    const minute = Number(r.minute ?? 0);
+const fmtTime = d =>
+  d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 
-    // weekdays kann Zahl oder Array sein
-    let weekdays = [];
-    if (Array.isArray(r.weekdays)) weekdays = r.weekdays.map(n => Number(n));
-    else if (r.weekdays !== undefined) weekdays = [Number(r.weekdays)];
+const fmtDate = d =>
+  d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
-    const monthly = r.monthly ? {
-      nth: r.monthly.nth ? Number(r.monthly.nth) : undefined,
-      weekday: (r.monthly.weekday !== undefined) ? Number(r.monthly.weekday) : undefined,
-      dayOfMonth: r.monthly.dayOfMonth ? Number(r.monthly.dayOfMonth) : undefined,
-    } : undefined;
+const fmtDateShort = d =>
+  d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
-    const until = r.until?.toDate ? r.until.toDate()
-                 : r.until ? new Date(r.until)
-                 : null;
+// Endzeit aus Start + Dauer berechnen (Default 60 Min)
+function endFrom(startDate, minutes = 60) {
+  return new Date(startDate.getTime() + (Number(minutes) || 60) * 60000);
+}
 
-    return { freq, hour, minute, weekdays, monthly, until };
+// Endzeit aus Dokument oder Recurrence lesen
+function computeEndFromDocOrRule(startDate, docOrRule) {
+  // 1) echtes Enddatum bevorzugen (Timestamp oder ISO)
+  const rawEnd = docOrRule?.end;
+  if (rawEnd) {
+    const end = rawEnd.toDate ? rawEnd.toDate() : new Date(rawEnd);
+    if (!isNaN(end)) return end;
   }
+  // 2) sonst Dauerfelder akzeptieren (min)
+  const dur =
+    docOrRule?.durationMinutes ??
+    docOrRule?.recurrence?.durationMinutes ??
+    docOrRule?.duration ??
+    docOrRule?.recurrence?.duration;
 
-  function setTime(baseDate, h, m) {
-    const d = new Date(baseDate);
-    d.setHours(h ?? 0, m ?? 0, 0, 0);
-    return d;
+  return endFrom(startDate, dur ?? 60);
+}
+
+// Recurrence sauber normalisieren (Zahlen/Arrays/Timestamps)
+function normRecurrence(r) {
+  if (!r) return null;
+  const freq   = String(r.freq || '').toUpperCase();
+  const hour   = Number(r.hour ?? 0);
+  const minute = Number(r.minute ?? 0);
+
+  // weekdays kann Zahl ODER Array sein
+  let weekdays = [];
+  if (Array.isArray(r.weekdays)) weekdays = r.weekdays.map(n => Number(n));
+  else if (r.weekdays !== undefined) weekdays = [Number(r.weekdays)];
+
+  const monthly = r.monthly ? {
+    nth:       r.monthly.nth ? Number(r.monthly.nth) : undefined,
+    weekday:  (r.monthly.weekday !== undefined) ? Number(r.monthly.weekday) : undefined,
+    dayOfMonth: r.monthly.dayOfMonth ? Number(r.monthly.dayOfMonth) : undefined,
+  } : undefined;
+
+  const until = r.until?.toDate ? r.until.toDate()
+               : r.until ? new Date(r.until)
+               : null;
+
+  return { freq, hour, minute, weekdays, monthly, until };
+}
+
+// Hilfen für Datums-/Serienberechnung
+function setTime(baseDate, h, m) {
+  const d = new Date(baseDate);
+  d.setHours(h ?? 0, m ?? 0, 0, 0);
+  return d;
+}
+
+function getNthWeekdayOfMonth(year, month, weekday, nth) {
+  const first = new Date(year, month, 1);
+  const delta = (7 + weekday - first.getDay()) % 7;
+  const day   = 1 + delta + (nth - 1) * 7;
+  const d     = new Date(year, month, day);
+  return (d.getMonth() === month) ? d : null;
+}
+
+// Serien-Expansion
+function* expandWeekly(rule, start, end) {
+  const { weekdays = [], hour = 0, minute = 0 } = rule;
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    if (weekdays.includes(d.getDay())) yield setTime(d, hour, minute);
   }
-  function getNthWeekdayOfMonth(year, month, weekday, nth) {
-    const first = new Date(year, month, 1);
-    const delta = (7 + weekday - first.getDay()) % 7;
-    const day = 1 + delta + (nth - 1) * 7;
-    const d = new Date(year, month, day);
-    return (d.getMonth() === month) ? d : null;
-  }
+}
 
-  function* expandWeekly(rule, start, end) {
-    const { weekdays = [], hour = 0, minute = 0 } = rule;
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      if (weekdays.includes(d.getDay())) yield setTime(d, hour, minute);
-    }
-  }
-  function* expandMonthly(rule, start, end) {
-    const { monthly = {}, hour = 0, minute = 0 } = rule;
-    const startIdx = start.getFullYear() * 12 + start.getMonth();
-    const endIdx   = end.getFullYear()   * 12 + end.getMonth();
-    for (let idx = startIdx; idx <= endIdx; idx++) {
-      const year = Math.floor(idx / 12), month = idx % 12;
-      let candidate = null;
-      if (monthly.dayOfMonth) {
-        candidate = new Date(year, month, monthly.dayOfMonth);
-      } else if (monthly.nth && monthly.weekday !== undefined) {
-        candidate = getNthWeekdayOfMonth(year, month, monthly.weekday, monthly.nth);
-      }
-      if (!candidate) continue;
-      candidate = setTime(candidate, hour, minute);
-      if (candidate >= start && candidate <= end) yield candidate;
-    }
-  }
-  function expandRecurrence(rec, start, end) {
-    const r = normRecurrence(rec);
-    if (!r || !r.freq) return [];
-    const effectiveEnd = r.until ? new Date(Math.min(end, r.until)) : end;
-    const items = [];
-    if (r.freq === 'WEEKLY') {
-      for (const dt of expandWeekly(r, start, effectiveEnd)) items.push(dt);
-    } else if (r.freq === 'MONTHLY') {
-      for (const dt of expandMonthly(r, start, effectiveEnd)) items.push(dt);
-    }
-    return items;
-  }
+function* expandMonthly(rule, start, end) {
+  const { monthly = {}, hour = 0, minute = 0 } = rule;
+  const startIdx = start.getFullYear() * 12 + start.getMonth();
+  const endIdx   = end.getFullYear()   * 12 + end.getMonth();
+  for (let idx = startIdx; idx <= endIdx; idx++) {
+    const year = Math.floor(idx / 12), month = idx % 12;
+    let candidate = null;
 
-  // Klartext „Jeden Do · 18:30“ / „Jeden 1. Fr · 20:00“
-  function formatRecurrence(rec) {
-    if (!rec) return '';
-    const r = (typeof rec.freq === 'string') ? rec : normRecurrence(rec);
-    if (!r || !r.freq) return '';
-
-    const W = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-    const toHM = (h=0,m=0) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-
-    if (r.freq === 'WEEKLY') {
-      const days = Array.isArray(r.weekdays) ? r.weekdays : (r.weekdays !== undefined ? [r.weekdays] : []);
-      const dayStr = days.length ? days.map(d => W[Number(d)]).join(', ') : '';
-      const timeStr = toHM(r.hour, r.minute);
-      return dayStr ? `Jeden ${dayStr} · ${timeStr}` : `Wöchentlich · ${timeStr}`;
-    }
-
-    if (r.freq === 'MONTHLY') {
-      const nthLabel = (n) => ({1:'1.',2:'2.',3:'3.',4:'4.',5:'5.'}[n] || `${n}.`);
-      let base = 'Monatlich';
-      if (r.monthly?.dayOfMonth) {
-        base = `Jeden ${r.monthly.dayOfMonth}.`;
-      } else if (r.monthly?.nth && r.monthly?.weekday !== undefined) {
-        base = `Jeden ${nthLabel(Number(r.monthly.nth))} ${W[Number(r.monthly.weekday)]}`;
-      }
-      return `${base} · ${toHM(r.hour, r.minute)}`;
+    if (monthly.dayOfMonth) {
+      candidate = new Date(year, month, monthly.dayOfMonth);
+    } else if (monthly.nth && monthly.weekday !== undefined) {
+      candidate = getNthWeekdayOfMonth(year, month, monthly.weekday, monthly.nth);
     }
 
-    return '';
+    if (!candidate) continue;
+    candidate = setTime(candidate, hour, minute);
+    if (candidate >= start && candidate <= end) yield candidate;
   }
+}
 
-  // Nächste Vorkommnis eines Dokuments (einmalig oder wiederkehrend)
-  function nextOccurrence(doc, lookAheadDays = 90) {
-    const now = new Date();
-    const lookEnd = new Date(); lookEnd.setDate(lookEnd.getDate() + lookAheadDays);
+// Serie in konkrete Daten konvertieren (Fenster + optionales „until“)
+function expandRecurrence(rec, start, end) {
+  const r = normRecurrence(rec);
+  if (!r || !r.freq) return [];
+  const effectiveEnd = r.until ? new Date(Math.min(end, r.until)) : end;
 
-    if (doc.start && !doc.recurrence) {
-      const dt = doc.start?.toDate ? doc.start.toDate() : new Date(doc.start);
-      return dt >= now ? dt : null;
+  const items = [];
+  if (r.freq === 'WEEKLY') {
+    for (const dt of expandWeekly(r, start, effectiveEnd)) items.push(dt);
+  } else if (r.freq === 'MONTHLY') {
+    for (const dt of expandMonthly(r, start, effectiveEnd)) items.push(dt);
+  }
+  return items;
+}
+
+// Recurrence-Text inkl. Zeitspanne und optional „bis …“
+function formatRecurrence(rec) {
+  const r = normRecurrence(rec);
+  if (!r?.freq) return '';
+
+  const startDummy = new Date(); // nur für Zeitformatierung
+  const startTime  = setTime(startDummy, r.hour, r.minute);
+  const endTime    = computeEndFromDocOrRule(startTime, { recurrence: r });
+
+  let ruleTxt = '';
+  if (r.freq === 'WEEKLY' && Array.isArray(r.weekdays) && r.weekdays.length) {
+    // z.B. „Jeden Do · 18:30–19:30“ (bei mehreren: „Jeden Mo, Do · …“)
+    const wds = r.weekdays.map(w => WEEKDAYS[w]).join(', ');
+    ruleTxt = `Jeden ${wds} · ${fmtTime(startTime)}–${fmtTime(endTime)}`;
+  } else if (r.freq === 'MONTHLY' && r.monthly) {
+    if (r.monthly.dayOfMonth) {
+      ruleTxt = `Jeden ${r.monthly.dayOfMonth}. · ${fmtTime(startTime)}–${fmtTime(endTime)}`;
+    } else if (r.monthly.nth && r.monthly.weekday !== undefined) {
+      const nthMap = {1:'1.',2:'2.',3:'3.',4:'4.',5:'5.'};
+      ruleTxt = `Jeden ${nthMap[r.monthly.nth] || r.monthly.nth + '.'} ${WEEKDAYS[r.monthly.weekday]} · ${fmtTime(startTime)}–${fmtTime(endTime)}`;
     }
-    if (doc.recurrence) {
-      const occs = expandRecurrence(doc.recurrence, now, lookEnd);
-      occs.sort((a,b) => a - b);
-      return occs[0] || null;
-    }
-    return null;
   }
 
-  async function getDocsAll(colName) {
-    const qRef = query(collection(db, colName), orderBy('title'));
-    const snap = await getDocs(qRef);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  if (r.until) {
+    const until = r.until.toDate ? r.until.toDate() : new Date(r.until);
+    if (!isNaN(until)) ruleTxt += ` · bis ${fmtDateShort(until)}`;
   }
+  return ruleTxt || 'Wiederkehrend';
+}
+
+// Nächste Vorkommnis eines Dokuments (einmalig oder wiederkehrend)
+function nextOccurrence(doc, lookAheadDays = 90) {
+  const now = new Date();
+  const lookEnd = new Date(); lookEnd.setDate(lookEnd.getDate() + lookAheadDays);
+
+  // einmalig
+  if (doc.start && !doc.recurrence) {
+    const dt = doc.start?.toDate ? doc.start.toDate() : new Date(doc.start);
+    return dt >= now ? dt : null;
+  }
+  // wiederkehrend
+  if (doc.recurrence) {
+    const occs = expandRecurrence(doc.recurrence, now, lookEnd).sort((a,b) => a - b);
+    return occs[0] || null;
+  }
+  return null;
+}
+
+// Firestore-Helfer (alles laden, clientseitig filtern/sortieren)
+async function getDocsAll(colName) {
+  const qRef = query(collection(db, colName), orderBy('title'));
+  const snap = await getDocs(qRef);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
 
   // ---------- A) Nächste Termine (Events + Courses) ----------
   (async () => {
@@ -659,7 +728,7 @@ window.addEventListener('load', () => {
     }
   })();
 
-  // ---------- B) Events-Karten (aus DB, ohne Doppelanzeige) ----------
+  // ---------- B) Events-Karten ----------
 (async () => {
   try {
     const cards = document.getElementById('events-cards');
@@ -669,11 +738,25 @@ window.addEventListener('load', () => {
 
     const cardsHtml = events.map(ev => {
       const hasRec = !!ev.recurrence && (normRecurrence(ev.recurrence)?.freq);
-      // wenn wiederkehrend: nur die Regel zeigen; sonst: nächstes Datum
-      const dt    = hasRec ? null : nextOccurrence(ev, 180);
-      const line  = hasRec
-        ? (formatRecurrence(ev.recurrence) || 'Wiederkehrend')
-        : (dt ? `${fmtDate(dt)} · ${fmtTime(dt)}` : 'Termin folgt');
+
+      // wenn wiederkehrend → NUR Regeltext mit Zeitspanne
+      if (hasRec) {
+        const line = formatRecurrence(ev.recurrence);
+        return `
+          <article class="card">
+            <h3>${ev.title || ''}</h3>
+            <p class="meta">${line}</p>
+            ${ev.description ? `<p>${ev.description}</p>` : ``}
+          </article>
+        `;
+      }
+
+      // einmalig → konkretes Datum + Start–Ende
+      const start = ev.start?.toDate ? ev.start.toDate() : (ev.start ? new Date(ev.start) : null);
+      const end   = start ? computeEndFromDocOrRule(start, ev) : null;
+      const line  = (start && end)
+        ? `${fmtDate(start)} · ${fmtTime(start)}–${fmtTime(end)}`
+        : 'Termin folgt';
 
       return `
         <article class="card">
@@ -691,7 +774,8 @@ window.addEventListener('load', () => {
 })();
 
 
-  // ---------- C) Kurse-Karten (aus DB, ohne Doppelanzeige) ----------
+
+ // ---------- C) Kurse-Karten ----------
 (async () => {
   try {
     const kurseliste = document.getElementById('kurseliste');
@@ -700,24 +784,37 @@ window.addEventListener('load', () => {
     const snap = await getDocs(collection(db, 'courses'));
 
     const rows = [];
+    const lookAhead = 180; // Tage für „nächste Vorkommnis“ bei einmaligen, nur für Sortierung
+
     snap.docs.forEach(d => {
       const k = { id: d.id, ...d.data() };
       const hasRec = !!k.recurrence && (normRecurrence(k.recurrence)?.freq);
-      const when   = hasRec ? null : nextOccurrence(k, 180); // nur für Sortierung nutzen
+
+      let infoLine = '';
+      let sortKey  = new Date(8640000000000000); // sehr groß → nach hinten
+
+      if (hasRec) {
+        // nur Regeltext mit Zeitspanne zeigen
+        infoLine = formatRecurrence(k.recurrence);
+      } else {
+        // nächstes Datum finden (deine nextOccurrence nutzt expandRecurrence/Start)
+        const start = k.start?.toDate ? k.start.toDate() : (k.start ? new Date(k.start) : null);
+        if (start && start >= new Date()) {
+          const end = computeEndFromDocOrRule(start, k);
+          infoLine  = `${fmtDate(start)} · ${fmtTime(start)}–${fmtTime(end)}`;
+          sortKey   = start;
+        } else {
+          infoLine = k.info || 'Termin folgt';
+        }
+      }
+
       const statusColor = k.statusColor || 'var(--ok)';
-
-      const infoLine = hasRec
-        ? (formatRecurrence(k.recurrence) || 'Wiederkehrend')
-        : (when ? `${fmtDate(when)} · ${fmtTime(when)}` : (k.info || 'Termin folgt'));
-
       rows.push({
-        when: when || new Date(8640000000000000), // große Zahl = „nach hinten sortieren“, falls kein Datum
+        when: sortKey,
         html: `
           <article class="card">
             <h3>${k.title || ''}</h3>
-            <p class="meta">
-              ${k.level ? `${k.level} · ` : ``}${infoLine}
-            </p>
+            <p class="meta">${k.level ? `${k.level} · ` : ``}${infoLine}</p>
             ${k.description ? `<p style="margin-top:8px;">${k.description}</p>` : ``}
             <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
               <span class="meta">Status:</span>
@@ -735,6 +832,7 @@ window.addEventListener('load', () => {
   }
 })();
 
+
   // ---------- D) Nach Reload immer oben starten (optional) ----------
   window.addEventListener('load', () => {
     if (window.location.hash) {
@@ -742,6 +840,120 @@ window.addEventListener('load', () => {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
   });
+
+// ===== E) PREISE LADEN UND RENDERN =====
+  (async () => {
+    try {
+      const wrap = document.getElementById('preise-wrap');
+      const catSelect = document.getElementById('price-category-filter');
+      if (!wrap) return;
+
+      // --- Preise holen ---
+      // Erwartete, aber flexible Struktur:
+      // Collection: "prices"
+      // Dokument-Felder (empfohlen):
+      //  - title: string (z.B. "Einzelstunde Indoor")
+      //  - price: number (z.B. 24.9)
+      //  - currency: string (z.B. "€" | "EUR")
+      //  - unit: string (z.B. "pro Stunde", "p.P.", "4er Court / 90min")
+      //  - category: string (z.B. "Platzbuchung Indoor", "Platzbuchung Outdoor", "Kurs", "Leihschläger")
+      //  - notes: string (optional, kleine Infozeile)
+      //  - active: boolean (optional, default true)
+      //  - sort: number (optional, für Sortierung innerhalb Kategorie)
+      //
+      // Alternativ unterstützt: priceStr (fertig formatierter String), falls ihr z.B. "auf Anfrage" habt.
+
+      const priceDocs = await getDocsAll('prices');
+
+      // nur aktive / sinnvolle Einträge
+      const items = priceDocs
+        .filter(p => p && (p.active !== false))
+        .map(p => ({
+          id: p.id,
+          title: p.title || '',
+          category: p.category || 'Allgemein',
+          price: (typeof p.price === 'number') ? p.price : null,
+          priceStr: p.priceStr || null,
+          currency: p.currency || '€',
+          unit: p.unit || '',
+          notes: p.notes || '',
+          sort: (typeof p.sort === 'number') ? p.sort : 1e9
+        }));
+
+      // Kategorien sammeln
+      const categories = [...new Set(items.map(i => i.category))].sort((a,b) => a.localeCompare(b, 'de'));
+      // Filter-Select befüllen
+      if (catSelect) {
+        categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat; opt.textContent = cat;
+          catSelect.appendChild(opt);
+        });
+      }
+
+      function formatAmount(it) {
+        if (it.priceStr) return it.priceStr;
+        if (it.price == null || isNaN(it.price)) return '—';
+        // deutsches Format
+        const num = new Intl.NumberFormat('de-DE', { minimumFractionDigits: (it.price % 1 ? 2 : 0), maximumFractionDigits: 2 }).format(it.price);
+        // "€ 24,90" oder "24,90 €" – wir nehmen hinter dem Betrag
+        return `${num} ${it.currency || '€'}`.trim();
+      }
+
+      function render(list, filterCat = '') {
+        // Kategorie-Filter
+        const filtered = filterCat ? list.filter(i => i.category === filterCat) : list;
+
+        // nach Kategorie gruppieren
+        const byCat = new Map();
+        for (const it of filtered) {
+          if (!byCat.has(it.category)) byCat.set(it.category, []);
+          byCat.get(it.category).push(it);
+        }
+
+        // sortieren innerhalb jeder Gruppe
+        for (const arr of byCat.values()) {
+          arr.sort((a,b) => (a.sort - b.sort) || a.title.localeCompare(b.title, 'de'));
+        }
+
+        // HTML bauen
+        const html = [...byCat.entries()].sort((a,b) => a[0].localeCompare(b[0], 'de')).map(([cat, arr]) => {
+          const rows = arr.map(it => `
+            <div class="price-row">
+              <div>
+                <div class="price-title">${it.title}</div>
+                ${(it.unit || it.notes) ? `<div class="price-meta">${[it.unit, it.notes].filter(Boolean).join(' · ')}</div>` : ``}
+              </div>
+              <div class="price-amount">${formatAmount(it)}</div>
+            </div>
+          `).join('');
+          return `
+            <section class="price-group">
+              <h3>${cat}</h3>
+              ${rows || `<p class="meta">Keine Einträge.</p>`}
+            </section>
+          `;
+        }).join('');
+
+        wrap.innerHTML = html || `<p class="meta">Zurzeit sind keine Preise hinterlegt.</p>`;
+      }
+
+      // initial render
+      render(items);
+
+      // Filter-Änderung
+      if (catSelect) {
+        catSelect.addEventListener('change', () => {
+          render(items, catSelect.value);
+        });
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden der Preise:', err);
+      const wrap = document.getElementById('preise-wrap');
+      if (wrap) wrap.innerHTML = `<p class="meta">Preise konnten nicht geladen werden.</p>`;
+    }
+  })();
+  
 </script>
 
 
