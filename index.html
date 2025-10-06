@@ -265,31 +265,15 @@ body {
     </section>
 
     <!-- EVENTS -->
-    <section id="events">
-      <div class="container">
-        <div class="panel">
-          <h2>Events</h2>
-          <p class="meta">After-Work, Turniere & Special Nights</p>
-          <div class="cards">
-            <article class="card">
-              <h3>After-Work Padel</h3>
-              <p class="meta">Jeden Donnerstag · 18:30–21:00</p>
-              <p>Locker spielen, neue Leute kennenlernen, Getränke an der Side-Line. Level offen – wir matchen vor Ort.</p>
-            </article>
-            <article class="card">
-              <h3>Padel meets Rave</h3>
-              <p class="meta">Jeden ersten Freitag im Monat · 20:00–23:30</p>
-              <p>Flutlicht, Beats & schnelle Ballwechsel. Mini-Fun-Cup, kleine Preise & Good Vibes.</p>
-            </article>
-            <article class="card">
-              <h3>Sunday Social</h3>
-              <p class="meta">Sonntag · 10:30–12:30</p>
-              <p>Mixed-Runden für Einsteiger bis Level 2. Perfekt, um reinzukommen und Spielpraxis zu sammeln.</p>
-            </article>
-          </div>
-        </div>
-      </div>
-    </section>
+<section id="events">
+  <div class="container">
+    <div class="panel">
+      <h2>Events</h2>
+      <p class="meta">After-Work, Turniere & Special Nights</p>
+      <div class="cards" id="events-cards"></div> <!-- ⬅️ ID hinzugefügt -->
+    </div>
+  </div>
+</section>
 
     <!-- ÜBER UNS -->
     <section id="ueber-uns">
@@ -466,85 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ===== Nächste Termine automatisch (nächste 14 Tage) =====
-const WEEKDAYS = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-const now = new Date();
-const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-const end = new Date(start); end.setDate(end.getDate() + 14);
 
-function setTime(d, h, m) { const x = new Date(d); x.setHours(h, m, 0, 0); return x; }
-function addWeekly(items, weekday, hour, minute, title) {
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    if (d.getDay() === weekday) {
-      const dt = setTime(d, hour, minute);
-      if (dt >= now) items.push({ dt, title });
-    }
-  }
-}
-function firstWeekdayOfMonth(year, month, weekday) {
-  const d = new Date(year, month, 1);
-  const delta = (7 + weekday - d.getDay()) % 7;
-  d.setDate(1 + delta);
-  return d;
-}
-function addFirstFridayMonthly(items, hour, minute, title) {
-  const months = [start.getMonth(), start.getMonth() + 1];
-  months.forEach(m => {
-    const y = start.getFullYear() + Math.floor(m / 12);
-    const mon = (m + 12) % 12;
-    const firstFri = firstWeekdayOfMonth(y, mon, 5); // Freitag
-    const dt = setTime(firstFri, hour, minute);
-    if (dt >= now && dt <= end) items.push({ dt, title });
-  });
-}
-
-const items = [];
-// Wöchentliche Kurse
-addWeekly(items, 1, 18, 0,  'Einsteiger-Training');        // Mo 18:00
-addWeekly(items, 4, 19, 0,  'Fortgeschrittenen-Training'); // Do 19:00
-addWeekly(items, 6, 10, 0,  'Jugend U16');                 // Sa 10:00
-// Events
-addWeekly(items, 4, 18, 30, 'After-Work Padel');           // Do 18:30
-addWeekly(items, 0, 10, 30, 'Sunday Social');              // So 10:30
-addFirstFridayMonthly(items, 20, 0, 'Padel meets Rave');   // 1. Freitag 20:00
-
-items.sort((a,b) => a.dt - b.dt);
-const upcoming = items.slice(0, 6);
-
-const tbodyAuto = document.getElementById('events-table');
-if (tbodyAuto) {
-  if (upcoming.length === 0) {
-    tbodyAuto.innerHTML = `<tr><td colspan="3" class="meta">Keine Termine in den nächsten 14 Tagen.</td></tr>`;
-  } else {
-    tbodyAuto.innerHTML = upcoming.map(ev => {
-      const tag = WEEKDAYS[ev.dt.getDay()];
-      const zeit = ev.dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      return `<tr><td>${tag}</td><td>${zeit}</td><td>${ev.title}</td></tr>`;
-    }).join('');
-  }
-}
-// ===== Ende automatische Termine =====
-
-// ===== Kurse rendern =====
-const kurse = [
-  { titel: 'Einsteiger (5 Wochen)', level: 'Level 0–1', info: 'Montag 18–19 Uhr',   status: 'freie Plätze', statusColor: 'var(--ok)' },
-  { titel: 'Fortgeschrittene',       level: 'Level 2–3', info: 'Donnerstag 19–20 Uhr', status: 'wenige Plätze', statusColor: 'var(--warn)' },
-  { titel: 'Jugend U16',             level: 'Alle',      info: 'Samstag 10–11 Uhr', status: 'frei',         statusColor: 'var(--ok)' }
-];
-
-const kurseliste = document.getElementById('kurseliste');
-if (kurseliste) {
-  kurseliste.innerHTML = kurse.map(k => `
-    <article class="card">
-      <h3>${k.titel}</h3>
-      <p class="meta">${k.level} · ${k.info}</p>
-      <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-        <span class="meta">Status:</span>
-        <span style="font-size:14px; color:${k.statusColor}">${k.status}</span>
-      </div>
-    </article>
-  `).join(''); // ← der abschließende Backtick MUSS hier stehen
-}
 // ===== Nach dem Laden: Immer oben starten =====
 window.addEventListener('load', () => {
   if (window.location.hash) {
@@ -553,6 +459,292 @@ window.addEventListener('load', () => {
   }
 });
 </script>
+<script type="module">
+  // --- Firebase SDKs ---
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+  import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
+  // --- Deine Firebase Config ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyDHEPPyHKPWi8bNnpjwvKOiGHrh6WuStpE",
+    authDomain: "padel-goe.firebaseapp.com",
+    projectId: "padel-goe",
+    storageBucket: "padel-goe.firebasestorage.app",
+    messagingSenderId: "241046345515",
+    appId: "1:241046345515:web:75fd944fd7a0ff0df6976e",
+    measurementId: "G-L9S1GHNH32"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // ---------- Utils ----------
+  const WEEKDAYS = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const fmtTime = d => d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = d => d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
+  // Recurrence: in ein sauberes Objekt normalisieren
+  function normRecurrence(r) {
+    if (!r) return null;
+    const freq = String(r.freq || '').toUpperCase();
+    const hour = Number(r.hour ?? 0);
+    const minute = Number(r.minute ?? 0);
+
+    // weekdays kann Zahl oder Array sein
+    let weekdays = [];
+    if (Array.isArray(r.weekdays)) weekdays = r.weekdays.map(n => Number(n));
+    else if (r.weekdays !== undefined) weekdays = [Number(r.weekdays)];
+
+    const monthly = r.monthly ? {
+      nth: r.monthly.nth ? Number(r.monthly.nth) : undefined,
+      weekday: (r.monthly.weekday !== undefined) ? Number(r.monthly.weekday) : undefined,
+      dayOfMonth: r.monthly.dayOfMonth ? Number(r.monthly.dayOfMonth) : undefined,
+    } : undefined;
+
+    const until = r.until?.toDate ? r.until.toDate()
+                 : r.until ? new Date(r.until)
+                 : null;
+
+    return { freq, hour, minute, weekdays, monthly, until };
+  }
+
+  function setTime(baseDate, h, m) {
+    const d = new Date(baseDate);
+    d.setHours(h ?? 0, m ?? 0, 0, 0);
+    return d;
+  }
+  function getNthWeekdayOfMonth(year, month, weekday, nth) {
+    const first = new Date(year, month, 1);
+    const delta = (7 + weekday - first.getDay()) % 7;
+    const day = 1 + delta + (nth - 1) * 7;
+    const d = new Date(year, month, day);
+    return (d.getMonth() === month) ? d : null;
+  }
+
+  function* expandWeekly(rule, start, end) {
+    const { weekdays = [], hour = 0, minute = 0 } = rule;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      if (weekdays.includes(d.getDay())) yield setTime(d, hour, minute);
+    }
+  }
+  function* expandMonthly(rule, start, end) {
+    const { monthly = {}, hour = 0, minute = 0 } = rule;
+    const startIdx = start.getFullYear() * 12 + start.getMonth();
+    const endIdx   = end.getFullYear()   * 12 + end.getMonth();
+    for (let idx = startIdx; idx <= endIdx; idx++) {
+      const year = Math.floor(idx / 12), month = idx % 12;
+      let candidate = null;
+      if (monthly.dayOfMonth) {
+        candidate = new Date(year, month, monthly.dayOfMonth);
+      } else if (monthly.nth && monthly.weekday !== undefined) {
+        candidate = getNthWeekdayOfMonth(year, month, monthly.weekday, monthly.nth);
+      }
+      if (!candidate) continue;
+      candidate = setTime(candidate, hour, minute);
+      if (candidate >= start && candidate <= end) yield candidate;
+    }
+  }
+  function expandRecurrence(rec, start, end) {
+    const r = normRecurrence(rec);
+    if (!r || !r.freq) return [];
+    const effectiveEnd = r.until ? new Date(Math.min(end, r.until)) : end;
+    const items = [];
+    if (r.freq === 'WEEKLY') {
+      for (const dt of expandWeekly(r, start, effectiveEnd)) items.push(dt);
+    } else if (r.freq === 'MONTHLY') {
+      for (const dt of expandMonthly(r, start, effectiveEnd)) items.push(dt);
+    }
+    return items;
+  }
+
+  // Klartext „Jeden Do · 18:30“ / „Jeden 1. Fr · 20:00“
+  function formatRecurrence(rec) {
+    if (!rec) return '';
+    const r = (typeof rec.freq === 'string') ? rec : normRecurrence(rec);
+    if (!r || !r.freq) return '';
+
+    const W = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+    const toHM = (h=0,m=0) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+    if (r.freq === 'WEEKLY') {
+      const days = Array.isArray(r.weekdays) ? r.weekdays : (r.weekdays !== undefined ? [r.weekdays] : []);
+      const dayStr = days.length ? days.map(d => W[Number(d)]).join(', ') : '';
+      const timeStr = toHM(r.hour, r.minute);
+      return dayStr ? `Jeden ${dayStr} · ${timeStr}` : `Wöchentlich · ${timeStr}`;
+    }
+
+    if (r.freq === 'MONTHLY') {
+      const nthLabel = (n) => ({1:'1.',2:'2.',3:'3.',4:'4.',5:'5.'}[n] || `${n}.`);
+      let base = 'Monatlich';
+      if (r.monthly?.dayOfMonth) {
+        base = `Jeden ${r.monthly.dayOfMonth}.`;
+      } else if (r.monthly?.nth && r.monthly?.weekday !== undefined) {
+        base = `Jeden ${nthLabel(Number(r.monthly.nth))} ${W[Number(r.monthly.weekday)]}`;
+      }
+      return `${base} · ${toHM(r.hour, r.minute)}`;
+    }
+
+    return '';
+  }
+
+  // Nächste Vorkommnis eines Dokuments (einmalig oder wiederkehrend)
+  function nextOccurrence(doc, lookAheadDays = 90) {
+    const now = new Date();
+    const lookEnd = new Date(); lookEnd.setDate(lookEnd.getDate() + lookAheadDays);
+
+    if (doc.start && !doc.recurrence) {
+      const dt = doc.start?.toDate ? doc.start.toDate() : new Date(doc.start);
+      return dt >= now ? dt : null;
+    }
+    if (doc.recurrence) {
+      const occs = expandRecurrence(doc.recurrence, now, lookEnd);
+      occs.sort((a,b) => a - b);
+      return occs[0] || null;
+    }
+    return null;
+  }
+
+  async function getDocsAll(colName) {
+    const qRef = query(collection(db, colName), orderBy('title'));
+    const snap = await getDocs(qRef);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  // ---------- A) Nächste Termine (Events + Courses) ----------
+  (async () => {
+    try {
+      const tbody = document.getElementById('events-table');
+      if (!tbody) return;
+
+      const windowStart = new Date();
+      const windowEnd   = new Date(); windowEnd.setDate(windowEnd.getDate() + 14);
+
+      const [events, courses] = await Promise.all([
+        getDocsAll('events'),
+        getDocsAll('courses')
+      ]);
+
+      const flatItems = [];
+
+      function pushOccurrences(docs, kind) {
+        for (const doc of docs) {
+          // einmalig
+          if (doc.start && !doc.recurrence) {
+            const dt = doc.start?.toDate ? doc.start.toDate() : new Date(doc.start);
+            if (dt >= windowStart && dt <= windowEnd) flatItems.push({ dt, title: doc.title || '', kind });
+          }
+          // wiederkehrend
+          if (doc.recurrence && (doc.recurrence.freq || doc.recurrence.FREQ)) {
+            const occs = expandRecurrence(doc.recurrence, windowStart, windowEnd);
+            for (const dt of occs) flatItems.push({ dt, title: doc.title || '', kind });
+          }
+        }
+      }
+
+      pushOccurrences(events,  'Event');
+      pushOccurrences(courses, 'Kurs');
+
+      flatItems.sort((a,b) => a.dt - b.dt);
+      const upcoming = flatItems.slice(0, 6);
+
+      tbody.innerHTML = upcoming.length
+        ? upcoming.map(ev => {
+            const tag  = WEEKDAYS[ev.dt.getDay()];
+            const zeit = fmtTime(ev.dt);
+            return `<tr><td>${tag}</td><td>${zeit}</td><td>${ev.title} <span class="meta">(${ev.kind})</span></td></tr>`;
+          }).join('')
+        : `<tr><td colspan="3" class="meta">Keine Termine in den nächsten 14 Tagen.</td></tr>`;
+    } catch (err) {
+      console.error('Fehler beim Laden der nächsten Termine:', err);
+    }
+  })();
+
+  // ---------- B) Events-Karten (aus DB, ohne Doppelanzeige) ----------
+(async () => {
+  try {
+    const cards = document.getElementById('events-cards');
+    if (!cards) return;
+
+    const events = await getDocsAll('events');
+
+    const cardsHtml = events.map(ev => {
+      const hasRec = !!ev.recurrence && (normRecurrence(ev.recurrence)?.freq);
+      // wenn wiederkehrend: nur die Regel zeigen; sonst: nächstes Datum
+      const dt    = hasRec ? null : nextOccurrence(ev, 180);
+      const line  = hasRec
+        ? (formatRecurrence(ev.recurrence) || 'Wiederkehrend')
+        : (dt ? `${fmtDate(dt)} · ${fmtTime(dt)}` : 'Termin folgt');
+
+      return `
+        <article class="card">
+          <h3>${ev.title || ''}</h3>
+          <p class="meta">${line}</p>
+          ${ev.description ? `<p>${ev.description}</p>` : ``}
+        </article>
+      `;
+    }).join('');
+
+    cards.innerHTML = cardsHtml || `<p class="meta">Aktuell sind keine Events geplant.</p>`;
+  } catch (err) {
+    console.error('Fehler beim Laden der Event-Karten:', err);
+  }
+})();
+
+
+  // ---------- C) Kurse-Karten (aus DB, ohne Doppelanzeige) ----------
+(async () => {
+  try {
+    const kurseliste = document.getElementById('kurseliste');
+    if (!kurseliste) return;
+
+    const snap = await getDocs(collection(db, 'courses'));
+
+    const rows = [];
+    snap.docs.forEach(d => {
+      const k = { id: d.id, ...d.data() };
+      const hasRec = !!k.recurrence && (normRecurrence(k.recurrence)?.freq);
+      const when   = hasRec ? null : nextOccurrence(k, 180); // nur für Sortierung nutzen
+      const statusColor = k.statusColor || 'var(--ok)';
+
+      const infoLine = hasRec
+        ? (formatRecurrence(k.recurrence) || 'Wiederkehrend')
+        : (when ? `${fmtDate(when)} · ${fmtTime(when)}` : (k.info || 'Termin folgt'));
+
+      rows.push({
+        when: when || new Date(8640000000000000), // große Zahl = „nach hinten sortieren“, falls kein Datum
+        html: `
+          <article class="card">
+            <h3>${k.title || ''}</h3>
+            <p class="meta">
+              ${k.level ? `${k.level} · ` : ``}${infoLine}
+            </p>
+            ${k.description ? `<p style="margin-top:8px;">${k.description}</p>` : ``}
+            <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+              <span class="meta">Status:</span>
+              <span style="font-size:14px; color:${statusColor}">${k.status || ''}</span>
+            </div>
+          </article>
+        `
+      });
+    });
+
+    rows.sort((a,b) => a.when - b.when);
+    kurseliste.innerHTML = rows.map(r => r.html).join('') || `<p class="meta">Aktuell keine Kurse.</p>`;
+  } catch (err) {
+    console.error('Fehler beim Laden der Kurse:', err);
+  }
+})();
+
+  // ---------- D) Nach Reload immer oben starten (optional) ----------
+  window.addEventListener('load', () => {
+    if (window.location.hash) {
+      history.replaceState(null, null, ' ');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  });
+</script>
+
+
 
    
 </body>
