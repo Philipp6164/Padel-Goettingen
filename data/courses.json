@@ -1,0 +1,4 @@
+[
+  { "titel": "Einsteiger (5 Wochen)", "level": "Level 0–1", "info": "Montag 18–19 Uhr", "status": "freie Plätze", "statusColor": "var(--ok)" },
+  { "titel": "Fortgeschrittene", "level": "Level 2–3", "info": "Donnerstag 19–20 Uhr", "status": "wenige Plätze", "statusColor": "var(--warn)" }
+]

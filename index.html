@@ -13,6 +13,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://philipp6164.github.io/Padel-Goettingen/assets/LOGO.png" />
   <link rel="icon" href="assets/LOGO.png?v=2" type="image/png" />
+  
 
   <style>
     /* Base & Theme */
@@ -27,7 +28,7 @@
       --text: #f3f4f6;
       --muted: #9ca3af;
       --accent: #dbe81a;     /* Grün */
-      --accent-600: #d24a0b;
+      --accent-600: #f05e19;
       --ok: #21e607;
       --warn: #f59e0b;
       --radius: 18px;
@@ -36,7 +37,12 @@
       --header-h: 64px;
     }
 
-    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(1200px 600px at 20% -10%, #122016 0%, var(--bg) 70%); color: var(--text); line-height: 1.6; }
+body {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: radial-gradient(1000px 500px at 30% -10%, #2b0e00 0%, var(--bg) 70%);
+  color: var(--text);
+  line-height: 1.6;
+}
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
@@ -146,7 +152,7 @@
   <header>
     <div class="container nav">
       <a class="brand" href="#top" aria-label="Startseite – Padelwerk Göttingen">
-        <img src="assets/LOGO.png?v=3" alt="Padel-Logo" width="36" height="36" />
+        <img src="/assets/LOGO.png" alt="Padel-Logo" />
         <span>Padelwerk Göttingen</span>
       </a>
       <button class="menu-btn" aria-expanded="false" aria-controls="mainnav" id="menutoggle">Menü</button>
