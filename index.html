@@ -354,6 +354,56 @@
     });
 
   <script>
+// Jahr im Footer
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// Mobile Menü Toggle
+const toggle = document.getElementById('menutoggle');
+const nav = document.getElementById('mainnav');
+
+// Backdrop
+const backdrop = document.createElement('div');
+backdrop.className = 'backdrop';
+document.body.appendChild(backdrop);
+
+const resetNavTop = () => { if (window.innerWidth < 768) nav.style.top = getComputedStyle(document.documentElement).getPropertyValue('--header-h'); };
+resetNavTop();
+window.addEventListener('resize', resetNavTop);
+
+const openMenu = () => {
+  nav.classList.add('open');
+  toggle.setAttribute('aria-expanded', 'true');
+  backdrop.classList.add('show');
+  document.body.style.overflow = 'hidden';
+};
+const closeMenu = () => {
+  nav.classList.remove('open');
+  toggle.setAttribute('aria-expanded', 'false');
+  backdrop.classList.remove('show');
+  document.body.style.overflow = '';
+};
+
+toggle.addEventListener('click', () => {
+  nav.classList.contains('open') ? closeMenu() : openMenu();
+});
+backdrop.addEventListener('click', closeMenu);
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+window.addEventListener('resize', () => { if (window.innerWidth >= 768) closeMenu(); });
+
+// Anker-Scroll (Header-Höhe berücksichtigen)
+document.querySelectorAll('#mainnav a[href^="#"]').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) {
+      const offset = document.querySelector('header').offsetHeight - 4;
+      const top = target.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+    if (nav.classList.contains('open')) closeMenu();
+  });
+});
+
 // ===== Nächste Termine: automatisch (nächste 14 Tage) =====
 const WEEKDAYS = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 
@@ -388,12 +438,12 @@ function addFirstFridayMonthly(items, hour, minute, title) {
 }
 
 const items = [];
-// === Eure KURSE (wöchentlich) ===
+// === WÖCHENTLICHE KURSE ===
 addWeekly(items, 1, 18, 0,  'Einsteiger-Training');        // Mo 18:00
 addWeekly(items, 4, 19, 0,  'Fortgeschrittenen-Training'); // Do 19:00
 addWeekly(items, 6, 10, 0,  'Jugend U16');                 // Sa 10:00
 
-// === Eure EVENTS ===
+// === EVENTS ===
 addWeekly(items, 4, 18, 30, 'After-Work Padel');           // Do 18:30
 addWeekly(items, 0, 10, 30, 'Sunday Social');              // So 10:30
 addFirstFridayMonthly(items, 20, 0, 'Padel meets Rave');   // 1. Freitag 20:00
@@ -401,39 +451,37 @@ addFirstFridayMonthly(items, 20, 0, 'Padel meets Rave');   // 1. Freitag 20:00
 items.sort((a,b) => a.dt - b.dt);
 const upcoming = items.slice(0, 6);
 
-const tbody = document.getElementById('events-table');
-if (tbody) {
-  tbody.innerHTML = upcoming.map(ev => {
+const tbodyAuto = document.getElementById('events-table');
+if (tbodyAuto) {
+  tbodyAuto.innerHTML = upcoming.map(ev => {
     const tag = WEEKDAYS[ev.dt.getDay()];
     const zeit = ev.dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     return `<tr><td>${tag}</td><td>${zeit}</td><td>${ev.title}</td></tr>`;
   }).join('');
 }
 // ===== Ende automatische Termine =====
+
+// ===== Kurse rendern =====
+const kurse = [
+  { titel: 'Einsteiger (5 Wochen)', level: 'Level 0–1', info: 'Montag 18–19 Uhr', status: 'freie Plätze', statusColor: 'var(--ok)' },
+  { titel: 'Fortgeschrittene',       level: 'Level 2–3', info: 'Donnerstag 19–20 Uhr', status: 'wenige Plätze', statusColor: 'var(--warn)' },
+  { titel: 'Jugend U16',             level: 'Alle',      info: 'Samstag 10–11 Uhr',     status: 'frei',        statusColor: 'var(--ok)' }
+];
+
+const kurseliste = document.getElementById('kurseliste');
+if (kurseliste) {
+  kurseliste.innerHTML = kurse.map(k => `
+    <article class="card">
+      <h3>${k.titel}</h3>
+      <p class="meta">${k.level} · ${k.info}</p>
+      <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+        <span class="meta">Status:</span>
+        <span style="font-size:14px; color:${k.statusColor}">${k.status}</span>
+      </div>
+    </article>
+  `).join('');
+}
 </script>
-
-    const kurse = [
-      { titel: 'Einsteiger (5 Wochen)', level: 'Level 0–1', info: 'Montag 18–19 Uhr', status: 'freie Plätze', statusColor: 'var(--ok)' },
-      { titel: 'Fortgeschrittene', level: 'Level 2–3', info: 'Donnerstag 19–20 Uhr', status: 'wenige Plätze', statusColor: 'var(--warn)' },
-      { titel: 'Jugend U16', level: 'Alle', info: 'Samstag 10–11 Uhr', status: 'frei', statusColor: 'var(--ok)' }
-    ];
-
-    // Render Termine
-    const tbody = document.getElementById('events-table');
-    if (tbody) tbody.innerHTML = termine.map(t => `<tr><td>${t.tag}</td><td>${t.zeit}</td><td>${t.titel}</td></tr>`).join('');
-
-    // Render Kurse
-    const kurseliste = document.getElementById('kurseliste');
-    if (kurseliste) kurseliste.innerHTML = kurse.map(k => `
-      <article class="card">
-        <h3>${k.titel}</h3>
-        <p class="meta">${k.level} · ${k.info}</p>
-        <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-          <span class="meta">Status:</span>
-          <span style="font-size:14px; color:${k.statusColor}">${k.status}</span>
-        </div>
-      </article>
-    `).join('');
-  </script>
+   
 </body>
 </html>
