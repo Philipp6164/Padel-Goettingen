@@ -311,6 +311,28 @@ details.course-desc summary {
   font-size: 14px;
 }
 details.course-desc[open] summary { margin-bottom: 6px; }
+/* Preise: Filter-Chips für Oberkategorien */
+.price-filter{
+  display:flex; gap:8px; flex-wrap:wrap;
+  margin: 10px 0 12px;
+}
+.price-filter .chip{
+  display:inline-flex; align-items:center;
+  padding:8px 12px;
+  border:1px solid #263141;
+  border-radius:9999px;
+  background:#0b122b;
+  color:var(--text);
+  cursor:pointer;
+  transition: background .18s ease, transform .12s ease, border-color .18s ease;
+}
+.price-filter .chip:hover{ background: var(--hover); transform: translateY(-1px); }
+.price-filter .chip.active{
+  background: linear-gradient(135deg, var(--accent), var(--accent-600));
+  color:#111; border-color: transparent;
+}
+.price-top{ margin:12px 0 8px; font-size: 20px; } /* Überschrift je Oberkategorie */
+
   </style>
 </head>
 <body>
@@ -408,6 +430,7 @@ details.course-desc[open] summary { margin-bottom: 6px; }
     <div class="panel">
       <h2>Preise</h2>
       <p class="meta">Alle Preise werden live aus unserer Datenbank geladen.</p>
+      <div id="preise-filter" class="price-filter" aria-label="Filter nach Oberkategorie"></div>
       <div id="preise-wrap" class="grid" style="gap: 16px;"></div>
     </div>
   </div>
@@ -1113,81 +1136,131 @@ async function getDocsAll(colName) {
     }
   });
 
-// ===== E) PREISE LADEN UND RENDERN (ohne Filter) =====
-  (async () => {
-    try {
-      const wrap = document.getElementById('preise-wrap');
-      if (!wrap) return;
+// ===== E) PREISE LADEN UND RENDERN (mit Oberkategorie-Filter) =====
+(async () => {
+  try {
+    const wrap   = document.getElementById('preise-wrap');
+    const filter = document.getElementById('preise-filter');
+    if (!wrap || !filter) return;
 
-      // Preise holen
-      const priceDocs = await getDocsAll('prices');
+    const priceDocs = await getDocsAll('prices');
 
-      const items = priceDocs
-        .filter(p => p && (p.active !== false))
-        .map(p => ({
-          id: p.id,
-          title: p.title || '',
-          category: p.category || 'Allgemein',
-          price: (typeof p.price === 'number') ? p.price : null,
-          priceStr: p.priceStr || null,
-          currency: p.currency || '€',
-          unit: p.unit || '',
-          notes: p.notes || '',
-          sort: (typeof p.sort === 'number') ? p.sort : 1e9
-        }));
+    // Items normalisieren + rückwärts-kompatibel
+    const items = priceDocs
+      .filter(p => p && (p.active !== false))
+      .map(p => ({
+        id: p.id,
+        title: p.title || '',
+        top:   p.topCategory || p.top || p.category || 'Allgemein', // Oberkategorie
+        sub:   p.subCategory || p.subcategory || p.sub || 'Allgemein', // Unterkategorie
+        price: (typeof p.price === 'number') ? p.price : null,
+        priceStr: p.priceStr || null,
+        currency: p.currency || '€',
+        unit: p.unit || '',
+        notes: p.notes || '',
+        sort: (typeof p.sort === 'number') ? p.sort : 1e9
+      }));
 
-      function formatAmount(it) {
-        if (it.priceStr) return escapeHTML(it.priceStr);
-        if (it.price == null || isNaN(it.price)) return '—';
-        const num = new Intl.NumberFormat('de-DE', {
-          minimumFractionDigits: (it.price % 1 ? 2 : 0),
-          maximumFractionDigits: 2
-        }).format(it.price);
-        return escapeHTML(`${num} ${it.currency || '€'}`.trim());
-      }
-
-      function render(list) {
-        // nach Kategorie gruppieren
-        const byCat = new Map();
-        for (const it of list) {
-          if (!byCat.has(it.category)) byCat.set(it.category, []);
-          byCat.get(it.category).push(it);
-        }
-        // sortieren innerhalb jeder Gruppe
-        for (const arr of byCat.values()) {
-          arr.sort((a,b) => (a.sort - b.sort) || a.title.localeCompare(b.title, 'de'));
-        }
-        // HTML bauen
-        const html = [...byCat.entries()]
-          .sort((a,b) => a[0].localeCompare(b[0], 'de'))
-          .map(([cat, arr]) => {
-            const rows = arr.map(it => `
-              <div class="price-row">
-                <div>
-                  <div class="price-title">${escapeHTML(it.title)}</div>
-                  ${(it.unit || it.notes) ? `<div class="price-meta">${[escapeHTML(it.unit), escapeHTML(it.notes)].filter(Boolean).join(' · ')}</div>` : ``}
-                </div>
-                <div class="price-amount">${formatAmount(it)}</div>
-              </div>
-            `).join('');
-            return `
-              <section class="price-group">
-                <h3>${escapeHTML(cat)}</h3>
-                ${rows || `<p class="meta">Keine Einträge.</p>`}
-              </section>
-            `;
-          }).join('');
-
-        wrap.innerHTML = html || `<p class="meta">Zurzeit sind keine Preise hinterlegt.</p>`;
-      }
-
-      render(items);
-    } catch (err) {
-      console.error('Fehler beim Laden der Preise:', err);
-      const wrap = document.getElementById('preise-wrap');
-      if (wrap) wrap.innerHTML = `<p class="meta">Preise konnten nicht geladen werden.</p>`;
+    function formatAmount(it){
+      if (it.priceStr) return escapeHTML(it.priceStr);
+      if (it.price == null || isNaN(it.price)) return '—';
+      const num = new Intl.NumberFormat('de-DE', { minimumFractionDigits: (it.price % 1 ? 2 : 0), maximumFractionDigits: 2 }).format(it.price);
+      return escapeHTML(`${num} ${it.currency || '€'}`.trim());
     }
-  })();
+
+    // sortiere: Montag–Freitag zuerst, dann Wochenende, dann alphabetisch
+const topsRaw = Array.from(new Set(items.map(i => i.top)));
+const priority = (t) => (t === 'Montag–Freitag' ? 0 : t === 'Wochenende' ? 1 : 2);
+const tops = topsRaw.sort((a,b)=> (priority(a)-priority(b)) || a.localeCompare(b,'de'));
+
+// Standard: „Montag–Freitag“ (falls vorhanden), sonst erste Kategorie
+let selectedTop = tops.includes('Montag–Freitag') ? 'Montag–Freitag' : (tops[0] || null);
+
+
+    function renderChips(){
+  const chips = tops.map(t =>
+    `<button class="chip ${selectedTop===t?'active':''}" data-top="${escapeHTML(t)}">${escapeHTML(t)}</button>`
+  ).join('');
+  filter.innerHTML = chips;
+  filter.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedTop = btn.getAttribute('data-top');
+      renderChips();            // active-Status aktualisieren
+      render(items, selectedTop);
+    });
+  });
+}
+
+
+    function render(list, topSel){
+      // Oberkategorie → Unterkategorie → Items
+      const byTop = new Map();
+      for (const it of list) {
+        if (topSel && it.top !== topSel) continue;
+        if (!byTop.has(it.top)) byTop.set(it.top, []);
+        byTop.get(it.top).push(it);
+      }
+
+      // sortieren pro Oberkategorie
+      for (const arr of byTop.values()){
+        arr.sort((a,b) => (a.sub.localeCompare(b.sub,'de')) || (a.sort - b.sort) || a.title.localeCompare(b.title,'de'));
+      }
+
+      // HTML aufbauen
+      const topEntries = [...byTop.entries()].sort((a,b)=>a[0].localeCompare(b[0],'de'));
+      const html = topEntries.map(([topName, arr]) => {
+        // innerhalb Oberkategorie nach Unterkategorie gruppieren
+        const bySub = new Map();
+        arr.forEach(it => {
+          const key = it.sub || 'Allgemein';
+          if (!bySub.has(key)) bySub.set(key, []);
+          bySub.get(key).push(it);
+        });
+
+        const subHtml = [...bySub.entries()].sort((a,b)=>a[0].localeCompare(b[0],'de')).map(([subName, subArr]) => {
+          const rows = subArr.map(it => `
+            <div class="price-row">
+              <div>
+                <div class="price-title">${escapeHTML(it.title)}</div>
+                ${ (it.unit || it.notes)
+                  ? `<div class="price-meta">${[escapeHTML(it.unit), escapeHTML(it.notes)].filter(Boolean).join(' · ')}</div>`
+                  : ``}
+              </div>
+              <div class="price-amount">${formatAmount(it)}</div>
+            </div>
+          `).join('');
+          return `
+            <section class="price-group">
+              <h3>${escapeHTML(subName)}</h3>
+              ${rows || `<p class="meta">Keine Einträge.</p>`}
+            </section>
+          `;
+        }).join('');
+
+        return `
+          <div class="topcat">
+            <h3 class="price-top">${escapeHTML(topName)}</h3>
+            <div class="grid" style="gap:16px;">
+              ${subHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      wrap.innerHTML = html || `<p class="meta">Zurzeit sind keine Preise hinterlegt.</p>`;
+    }
+
+    // erste Render-Pass
+    renderChips();
+    render(items, selectedTop);
+
+  } catch (err) {
+    console.error('Fehler beim Laden der Preise:', err);
+    const wrap = document.getElementById('preise-wrap');
+    if (wrap) wrap.innerHTML = `<p class="meta">Preise konnten nicht geladen werden.</p>`;
+  }
+})();
+
   
 </script>
 
