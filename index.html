@@ -271,6 +271,46 @@ nav.open ul{ display:flex; }
 .price-title { font-weight: 600; }
 .price-meta { color: var(--muted); font-size: 14px; }
 .price-amount { font-weight: 700; }
+
+/* Hinweis/Alert für Ferien & Schließzeiten */
+.alert{
+  position:relative;
+  border:1px solid #5b1b1b;
+  background: linear-gradient(180deg, rgba(127,29,29,.25), rgba(127,29,29,.12));
+  color:#fde68a;
+  padding:14px 16px;
+  border-radius:14px;
+  box-shadow: var(--shadow);
+}
+.alert .badge{
+  display:inline-block;
+  font-weight:700;
+  padding:4px 8px;
+  border-radius:9999px;
+  background:#7f1d1d;
+  color:#fff;
+  margin-right:8px;
+}
+.pill-closure{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:9999px;
+  background:#7f1d1d;
+  color:#fff;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.3px;
+}
+
+/* Kurse: aufklappbare Langbeschreibung */
+details.course-desc { margin-top: 8px; }
+details.course-desc summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+  font-size: 14px;
+}
+details.course-desc[open] summary { margin-bottom: 6px; }
   </style>
 </head>
 <body>
@@ -302,6 +342,17 @@ nav.open ul{ display:flex; }
   </header>
 
   <main id="top">
+    <!-- Schließzeiten / Ferien -->
+<section id="closures" style="padding:14px 0 0;">
+  <div class="container">
+    <div id="closure-banner" class="alert alert-closure" hidden>
+      <span class="badge">Hinweis</span>
+      <span id="closure-text"></span>
+    </div>
+  </div>
+</section>
+
+    
     <!-- HERO -->
     <section class="hero" id="hero">
       <div class="container hero-grid" style="overflow:hidden;">
@@ -739,6 +790,62 @@ function formatRecurrence(rec) {
   }
   return ruleTxt || 'Wiederkehrend';
 }
+// --- Schließzeiten-Utils ---
+const inRange = (dt, start, end) => dt >= start && dt <= end;
+const overlapRange = (aStart, aEnd, bStart, bEnd) => aStart <= bEnd && aEnd >= bStart;
+
+function normalizeClosures(rawClosures){
+  return (rawClosures||[])
+    .map(c => ({
+      id: c.id,
+      title: c.title || 'Ferien/Schließzeit',
+      description: c.description || '',
+      start: c.start?.toDate ? c.start.toDate() : (c.start ? new Date(c.start) : null),
+      end:   c.end?.toDate   ? c.end.toDate()   : (c.end   ? new Date(c.end)   : null),
+    }))
+    .filter(c => c.start && c.end && !isNaN(c.start) && !isNaN(c.end))
+    .sort((a,b) => a.start - b.start);
+}
+
+function nextRelevantClosure(closures, now=new Date()){
+  const active = closures.find(c => inRange(now, c.start, c.end));
+  if (active) return { type:'active', data: active };
+  const upcoming = closures.filter(c => c.start > now).sort((a,b)=>a.start-b.start)[0];
+  return upcoming ? { type:'upcoming', data: upcoming } : null;
+}
+
+function renderClosureBanner(info){
+  const banner = document.getElementById('closure-banner');
+  const textEl = document.getElementById('closure-text');
+  if (!banner || !textEl) return;
+  if (!info){ banner.hidden = true; return; }
+  const { type, data:c } = info;
+  const startStr = c.start.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' });
+  const endStr   = c.end.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' });
+  textEl.innerHTML = `<strong>${escapeHTML(c.title)}</strong>: ${type==='active'?'heute':'ab'} ${escapeHTML(startStr)} bis ${escapeHTML(endStr)} geschlossen${c.description ? ' – '+escapeHTML(c.description) : ''}.`;
+  banner.hidden = false;
+}
+// --- Kurse: nächster Termin unter Berücksichtigung von Schließzeiten ---
+function nextCourseDate(course, closures, horizonDays = 120) {
+  const now = new Date();
+  const horizon = new Date(); horizon.setDate(horizon.getDate() + horizonDays);
+
+  const isInsideAnyClosure = (dt) => closures?.some(c => inRange(dt, c.start, c.end));
+
+  if (course.recurrence && (course.recurrence.freq || course.recurrence.FREQ)) {
+    const occs = expandRecurrence(course.recurrence, now, horizon)
+      .filter(dt => !isInsideAnyClosure(dt))
+      .sort((a,b) => a - b);
+    return occs[0] || null;
+  }
+
+  if (course.start) {
+    const dt = course.start?.toDate ? course.start.toDate() : new Date(course.start);
+    return (dt >= now && !isInsideAnyClosure(dt)) ? dt : null;
+  }
+  return null;
+}
+
 
 // Nächste Vorkommnis eines Dokuments (einmalig oder wiederkehrend)
 function nextOccurrence(doc, lookAheadDays = 90) {
@@ -765,54 +872,84 @@ async function getDocsAll(colName) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-  // ---------- A) Nächste Termine (Events + Courses) ----------
-  (async () => {
-    try {
-      const tbody = document.getElementById('events-table');
-      if (!tbody) return;
 
-      const windowStart = new Date();
-      const windowEnd   = new Date(); windowEnd.setDate(windowEnd.getDate() + 14);
+ // ---------- A) Nächste Termine (Events + Courses) ----------
+(async () => {
+  try {
+    const tbody = document.getElementById('events-table');
+    if (!tbody) return;
 
-      const [events, courses] = await Promise.all([
-        getDocsAll('events'),
-        getDocsAll('courses')
-      ]);
+    const windowStart = new Date();
+    const windowEnd   = new Date(); windowEnd.setDate(windowEnd.getDate() + 14);
 
-      const flatItems = [];
+    const [events, courses, closuresRaw] = await Promise.all([
+      getDocsAll('events'),
+      getDocsAll('courses'),
+      getDocsAll('closures') // NEU
+    ]);
 
-      function pushOccurrences(docs, kind) {
-        for (const doc of docs) {
-          // einmalig
-          if (doc.start && !doc.recurrence) {
-            const dt = doc.start?.toDate ? doc.start.toDate() : new Date(doc.start);
-            if (dt >= windowStart && dt <= windowEnd) flatItems.push({ dt, title: doc.title || '', kind });
-          }
-          // wiederkehrend
-          if (doc.recurrence && (doc.recurrence.freq || doc.recurrence.FREQ)) {
-            const occs = expandRecurrence(doc.recurrence, windowStart, windowEnd);
-            for (const dt of occs) flatItems.push({ dt, title: doc.title || '', kind });
+    const closures = normalizeClosures(closuresRaw);
+
+    // Banner oben setzen
+    renderClosureBanner(nextRelevantClosure(closures, new Date()));
+
+    const flatItems = [];
+    const isInsideAnyClosure = (dt) => closures.some(c => inRange(dt, c.start, c.end));
+
+    function pushOccurrences(docs, kind) {
+      for (const doc of docs) {
+        // einmalig
+        if (doc.start && !doc.recurrence) {
+          const dt = doc.start?.toDate ? doc.start.toDate() : new Date(doc.start);
+          if (dt >= windowStart && dt <= windowEnd && !isInsideAnyClosure(dt)) {
+            flatItems.push({ dt, title: doc.title || '', kind });
           }
         }
+        // wiederkehrend
+        if (doc.recurrence && (doc.recurrence.freq || doc.recurrence.FREQ)) {
+          const occs = expandRecurrence(doc.recurrence, windowStart, windowEnd)
+            .filter(dt => !isInsideAnyClosure(dt));
+          for (const dt of occs) flatItems.push({ dt, title: doc.title || '', kind });
+        }
       }
-
-      pushOccurrences(events,  'Event');
-      pushOccurrences(courses, 'Kurs');
-
-      flatItems.sort((a,b) => a.dt - b.dt);
-      const upcoming = flatItems.slice(0, 6);
-
-      tbody.innerHTML = upcoming.length
-        ? upcoming.map(ev => {
-            const tag  = WEEKDAYS[ev.dt.getDay()];
-            const zeit = fmtTime(ev.dt);
-            return `<tr><td>${escapeHTML(tag)}</td><td>${escapeHTML(zeit)}</td><td>${escapeHTML(ev.title)} <span class="meta">(${escapeHTML(ev.kind)})</span></td></tr>`;
-          }).join('')
-        : `<tr><td colspan="3" class="meta">Keine Termine in den nächsten 14 Tagen.</td></tr>`;
-    } catch (err) {
-      console.error('Fehler beim Laden der nächsten Termine:', err);
     }
-  })();
+
+    pushOccurrences(events,  'Event');
+    pushOccurrences(courses, 'Kurs');
+
+    // NEU: nächste Schließzeit als eigener Termin
+    const nextCl = nextRelevantClosure(closures, new Date());
+    if (nextCl && nextCl.data.start <= windowEnd) {
+      const c = nextCl.data;
+      flatItems.push({
+        dt: c.start,
+        title: `Schließzeit: ${c.title} (${c.start.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})}–${c.end.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})})`,
+        kind: 'Schließung',
+        __closure: true
+      });
+    }
+
+    flatItems.sort((a,b) => a.dt - b.dt);
+    const upcoming = flatItems.slice(0, 6);
+
+    tbody.innerHTML = upcoming.length
+      ? upcoming.map(ev => {
+          const tag  = WEEKDAYS[ev.dt.getDay()];
+          const zeit = fmtTime(ev.dt);
+          const label = ev.__closure
+            ? `<span class="pill-closure">SCHLIESSUNG</span> ${escapeHTML(ev.title)}`
+            : `${escapeHTML(ev.title)} <span class="meta">(${escapeHTML(ev.kind)})</span>`;
+          return ev.__closure
+  ? `<tr><td>${escapeHTML(tag)}</td><td></td><td>${label}</td></tr>`
+  : `<tr><td>${escapeHTML(tag)}</td><td>${escapeHTML(zeit)}</td><td>${label}</td></tr>`;
+
+        }).join('')
+      : `<tr><td colspan="3" class="meta">Keine Termine in den nächsten 14 Tagen.</td></tr>`;
+  } catch (err) {
+    console.error('Fehler beim Laden der nächsten Termine:', err);
+  }
+})();
+
 
   // ---------- B) Events-Karten ----------
 (async () => {
@@ -820,11 +957,28 @@ async function getDocsAll(colName) {
     const cards = document.getElementById('events-cards');
     if (!cards) return;
 
-    const events = await getDocsAll('events');
+    const [events, closuresRaw] = await Promise.all([
+      getDocsAll('events'),
+      getDocsAll('closures')
+    ]);
+    const closures = normalizeClosures(closuresRaw);
 
-    const cardsHtml = events.map(ev => {
+    const fallsInClosure = (start, end) => {
+      if (!start) return false;
+      const s = start?.toDate ? start.toDate() : new Date(start);
+      const e = end?.toDate ? end.toDate() : (end ? new Date(end) : computeEndFromDocOrRule(s, {}));
+      return closures.some(c => overlapRange(s, e, c.start, c.end));
+    };
+
+    const filtered = events.filter(ev => {
+      if (ev.start && !ev.recurrence) {
+        return !fallsInClosure(ev.start, ev.end);
+      }
+      return true; // wiederkehrende bleiben (ohne einzelne Daten)
+    });
+
+    const cardsHtml = filtered.map(ev => {
       const hasRec = !!ev.recurrence && (normRecurrence(ev.recurrence)?.freq);
-
       if (hasRec) {
         const line = escapeHTML(formatRecurrence(ev.recurrence));
         const title = escapeHTML(ev.title || '');
@@ -838,15 +992,11 @@ async function getDocsAll(colName) {
         `;
       }
 
-      // einmalig → konkretes Datum + Start–Ende
       const start = ev.start?.toDate ? ev.start.toDate() : (ev.start ? new Date(ev.start) : null);
       const end   = start ? computeEndFromDocOrRule(start, ev) : null;
-      const line  = escapeHTML((start && end)
-        ? `${fmtDate(start)} · ${fmtTime(start)}–${fmtTime(end)}`
-        : 'Termin folgt');
+      const line  = escapeHTML((start && end) ? `${fmtDate(start)} · ${fmtTime(start)}–${fmtTime(end)}` : 'Termin folgt');
       const title = escapeHTML(ev.title || '');
       const desc  = escapeHTML(ev.description || '');
-
       return `
         <article class="card">
           <h3>${title}</h3>
@@ -870,45 +1020,73 @@ async function getDocsAll(colName) {
     const kurseliste = document.getElementById('kurseliste');
     if (!kurseliste) return;
 
-    const snap = await getDocs(collection(db, 'courses'));
-
+    const [snap, closuresRaw] = await Promise.all([
+      getDocs(collection(db, 'courses')),
+      getDocsAll('closures')
+    ]);
+    const closures = normalizeClosures(closuresRaw);
     const rows = [];
 
     snap.docs.forEach(d => {
       const k = { id: d.id, ...d.data() };
       const hasRec = !!k.recurrence && (normRecurrence(k.recurrence)?.freq);
 
-      let infoLine = '';
-      let sortKey  = new Date(8640000000000000); // sehr groß → nach hinten
+      // 1) Serien-Text
+      const recurrenceLine = hasRec ? formatRecurrence(k.recurrence) : '';
 
-      if (hasRec) {
-        infoLine = formatRecurrence(k.recurrence);
-      } else {
+      // 2) Nächster konkreter Termin (Schließzeiten beachten)
+      const nextDt = nextCourseDate(k, closures, 180);
+      const endDt  = nextDt ? computeEndFromDocOrRule(nextDt, k) : null;
+
+      // 3) Anzeigezeile
+      let infoLine = '';
+      if (nextDt) {
+  // Uhrzeit hier weglassen, weil sie oben im Serientext bereits steht
+  infoLine = `Nächster Termin: ${fmtDate(nextDt)}`;
+}
+ else if (hasRec) {
+  // Serie vorhanden, aber aktuell kein konkreter Termin im Horizont (z. B. wegen Ferien)
+  infoLine = `(nächster Termin aktuell nicht im Fenster)`;
+} else {
+        // weder Serie noch zukünftiges Startdatum
         const start = k.start?.toDate ? k.start.toDate() : (k.start ? new Date(k.start) : null);
         if (start && start >= new Date()) {
           const end = computeEndFromDocOrRule(start, k);
           infoLine  = `${fmtDate(start)} · ${fmtTime(start)}–${fmtTime(end)}`;
-          sortKey   = start;
         } else {
           infoLine = k.info || 'Termin folgt';
         }
       }
 
-      const statusColor = sanitizeColor(k.statusColor, 'var(--ok)');
+      // 4) Langbeschreibung (aufklappbar)
+      const descFull = String(k.description || '').trim();
+      const hasLong  = descFull.length > 140; // Schwellwert frei wählbar
+      const descHtml = hasLong
+        ? `
+          <details class="course-desc">
+            <summary>Mehr anzeigen</summary>
+            <p>${escapeHTML(descFull)}</p>
+          </details>
+        `
+        : (descFull ? `<p style="margin-top:8px;">${escapeHTML(descFull)}</p>` : ``);
 
+      // 5) Level/Status
+      const statusColor = sanitizeColor(k.statusColor, 'var(--ok)');
       const title = escapeHTML(k.title || '');
       const level = escapeHTML(k.level || '');
-      const info  = escapeHTML(infoLine);
-      const desc  = escapeHTML(k.description || '');
       const statusText = escapeHTML(k.status || '');
 
       rows.push({
-        when: sortKey,
+        when: nextDt || new Date(8640000000000000), // sortiere nach nächstem echten Termin
         html: `
           <article class="card">
             <h3>${title}</h3>
-            <p class="meta">${level ? `${level} · ` : ``}${info}</p>
-            ${desc ? `<p style="margin-top:8px;">${desc}</p>` : ``}
+            <p class="meta">
+              ${level ? `${level} · ` : ``}
+              ${hasRec ? `${escapeHTML(recurrenceLine)} · ` : ``}
+              ${escapeHTML(infoLine)}
+            </p>
+            ${descHtml}
             <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
               <span class="meta">Status:</span>
               <span style="font-size:14px; color:${statusColor}">${statusText}</span>
@@ -924,6 +1102,7 @@ async function getDocsAll(colName) {
     console.error('Fehler beim Laden der Kurse:', err);
   }
 })();
+
 
 
   // ---------- D) Nach Reload immer oben starten (optional) ----------
